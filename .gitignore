@@ -1,0 +1,4 @@
+venv/
+diktat.txt
+__pycache__/
+*.pyc
