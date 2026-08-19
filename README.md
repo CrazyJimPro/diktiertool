@@ -7,9 +7,24 @@ es wird kein Audio an einen Server geschickt, und `diktat.txt` bleibt lokal (sie
 
 ## Voraussetzungen
 
-- Linux mit Python 3.12 und dem System-Paket `python3-tk` (wird von `setup.sh` geprüft;
-  falls es fehlt, einmalig `sudo apt install python3-tk` ausführen)
+- Linux mit Python 3.12 und den System-Paketen `python3-tk`, `python3-venv` und
+  `libportaudio2` (werden von `setup.sh` geprüft; falls etwas fehlt, zeigt es den
+  passenden `apt install`-Befehl)
 - Internetverbindung nur für den einmaligen Modell-Download beim ersten Start
+
+## Installation auf einem neuen Rechner
+
+Das Repo ist privat, daher gibt es keinen anonymen `curl | bash`-Oneliner. Stattdessen:
+
+1. `installscript/bootstrap.sh` einmalig auf den neuen Rechner kopieren (Inhalt einfügen,
+   USB-Stick, o. ä.).
+2. Dort ausführen: `bash bootstrap.sh`
+
+Das Skript installiert bei Bedarf die GitHub CLI (`gh`), meldet dich interaktiv bei GitHub
+an (`gh auth login --web`, einmalig pro Rechner), klont das Repo nach `~/diktiertool`
+(überschreibbar per `DIKTIERTOOL_DIR=...`) und führt danach automatisch `./setup.sh` aus.
+
+Ist das Repo auf dem Rechner schon vorhanden (wie hier), reicht der nächste Schritt allein.
 
 ## Einrichtung (einmalig)
 
