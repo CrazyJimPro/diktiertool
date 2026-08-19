@@ -20,9 +20,18 @@ Das Repo ist privat, daher gibt es keinen anonymen `curl | bash`-Oneliner. Statt
    USB-Stick, o. ä.).
 2. Dort ausführen: `bash bootstrap.sh`
 
-Das Skript installiert bei Bedarf die GitHub CLI (`gh`), meldet dich interaktiv bei GitHub
-an (`gh auth login --web`, einmalig pro Rechner), klont das Repo nach `~/diktiertool`
-(überschreibbar per `DIKTIERTOOL_DIR=...`) und führt danach automatisch `./setup.sh` aus.
+Das Skript installiert bei Bedarf die GitHub CLI (`gh`) und klont danach das Repo nach
+`~/diktiertool` (überschreibbar per `DIKTIERTOOL_DIR=...`), bevor es automatisch
+`./setup.sh` ausführt. Bist du auf diesem Rechner noch nicht bei GitHub angemeldet, fragt
+es das zwischendurch interaktiv ab (`gh auth login --web`, einmalig pro Rechner):
+
+- "What account do you want to log into?" → **GitHub.com**
+- "Preferred protocol for Git operations?" → **HTTPS** (empfohlen – kein separates
+  SSH-Key-Management nötig)
+- "Authenticate Git with your GitHub credentials?" → **Yes**
+- "How would you like to authenticate?" → **Login with a web browser**
+- Terminal zeigt einen einmaligen Code → Browser öffnet sich (oder Link manuell öffnen) →
+  Code eingeben, mit dem GitHub-Account bestätigen (+2FA falls aktiv)
 
 Ist das Repo auf dem Rechner schon vorhanden (wie hier), reicht der nächste Schritt allein.
 
