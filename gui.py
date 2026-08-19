@@ -1,3 +1,4 @@
+import math
 import os
 import queue
 import threading
@@ -15,11 +16,24 @@ from file_writer import FileWriter
 POLL_MS = 100
 WATCHDOG_TIMEOUT_S = 3.0
 STANDARD_LABEL = "Standard-Mikrofon"
-# Rein optische Skalierung: RMS-Werte normaler Sprache liegen grob im Bereich
-# 0.02-0.15, das soll auf der Pegelanzeige sichtbar ausschlagen statt nur ein
-# paar Pixel breit zu sein. War bei 5.0 zu aggressiv (schlug bei normaler
-# Lautstaerke schon voll auf Rot aus), auf 2.0 reduziert fuer mehr Headroom.
-LEVEL_METER_SCALE = 2.0
+# Lineares RMS*SCALE (vorher) reagiert sehr empfindlich auf die Eingangs-
+# empfindlichkeit des jeweiligen Mikrofons - bei zwei Versuchen (5.0, dann
+# 2.0) blieb die Anzeige bei diesem Nutzer trotzdem staendig im roten
+# Bereich. Pegelanzeigen rechnen ueblicherweise in dB statt linear, weil das
+# robuster gegenueber genau dieser Empfindlichkeits-Varianz ist. -40dB liegt
+# knapp unter SILENCE_THRESHOLD_RMS (~-36.5dB), -3dB ist nah an digitalem
+# Clipping (0dB) - nur wirklich lautes/uebersteuerndes Signal soll voll rot
+# ausschlagen.
+LEVEL_METER_MIN_DB = -40.0
+LEVEL_METER_MAX_DB = -3.0
+
+
+def _level_to_meter(rms: float) -> float:
+    if rms <= 0:
+        return 0.0
+    db = 20 * math.log10(rms)
+    span = LEVEL_METER_MAX_DB - LEVEL_METER_MIN_DB
+    return max(0.0, min(1.0, (db - LEVEL_METER_MIN_DB) / span))
 
 
 class App(ctk.CTk):
@@ -181,7 +195,7 @@ class App(ctk.CTk):
             self._handle_error("Kein Signal vom Mikrofon mehr - Verbindung verloren?")
 
         if self.recording:
-            self.level_bar.set(min(self.capture.get_level() * LEVEL_METER_SCALE, 1.0))
+            self.level_bar.set(_level_to_meter(self.capture.get_level()))
         else:
             self.level_bar.set(0)
 

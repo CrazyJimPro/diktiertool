@@ -34,5 +34,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+./install-desktop-entry.sh
+
 echo ""
-echo "Setup abgeschlossen. Starte das Tool ab jetzt mit: ./start.sh"
+echo "Setup abgeschlossen. Starte das Tool ab jetzt mit: ./start.sh (oder ueber die neu angelegte Desktop-/Menue-Verknuepfung)"

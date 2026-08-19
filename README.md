@@ -32,7 +32,8 @@ Ist das Repo auf dem Rechner schon vorhanden (wie hier), reicht der nächste Sch
 ./setup.sh
 ```
 
-Legt eine lokale virtuelle Python-Umgebung an und installiert alle Abhängigkeiten.
+Legt eine lokale virtuelle Python-Umgebung an, installiert alle Abhängigkeiten und richtet
+dabei automatisch die Desktop-Verknüpfung ein (siehe unten).
 
 ## Benutzung (jedes Mal)
 
@@ -47,6 +48,24 @@ vorher "Aktualisieren" drücken, damit sie auftauchen), auf "Start" klicken, spr
 **Erster Start:** Lädt einmalig das Spracherkennungsmodell (~500MB), das kann ein paar
 Minuten dauern. Der Status zeigt das an, der Start-Button ist bis dahin gesperrt. Danach
 ist das Modell dauerhaft lokal zwischengespeichert und lädt beim nächsten Mal in Sekunden.
+
+## Desktop-Verknüpfung
+
+Wird automatisch als letzter Schritt von `setup.sh` eingerichtet – gemeint ist nur die
+Verknüpfung zum Starten, nicht das Tool selbst. Legt ein Icon im Anwendungsmenü und auf
+dem Desktop an: ein Doppelklick startet das Tool genau wie `./start.sh`, kein Terminal
+nötig. Am Verhalten des Tools ändert das nichts – es läuft weiterhin nur, solange das
+Fenster offen ist (kein Hintergrunddienst, kein Autostart, kein Tray-Icon), und die
+Aufnahme startet erst nach Klick auf "Start" im Fenster. Nutzt `xdg-user-dir DESKTOP`,
+funktioniert also auch bei nicht-englischer Locale (z. B. `~/Schreibtisch`). Zeigt
+Nautilus beim ersten Doppelklick auf dem Desktop-Icon nur eine Warnung: einmal
+rechtsklicken → "Start erlauben".
+
+Bei Bedarf einzeln erneut ausführbar (z. B. falls das Icon versehentlich gelöscht wurde):
+
+```
+./install-desktop-entry.sh
+```
 
 ## Ausgabe
 
