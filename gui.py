@@ -6,6 +6,8 @@ import time
 import customtkinter as ctk
 import sounddevice as sd
 
+import theme
+from level_meter import LevelMeter
 from audio_capture import AudioCapture, list_input_devices
 from transcriber import Transcriber
 from file_writer import FileWriter
@@ -15,15 +17,16 @@ WATCHDOG_TIMEOUT_S = 3.0
 STANDARD_LABEL = "Standard-Mikrofon"
 # Rein optische Skalierung: RMS-Werte normaler Sprache liegen grob im Bereich
 # 0.02-0.15, das soll auf der Pegelanzeige sichtbar ausschlagen statt nur ein
-# paar Pixel breit zu sein.
-LEVEL_METER_SCALE = 5.0
+# paar Pixel breit zu sein. War bei 5.0 zu aggressiv (schlug bei normaler
+# Lautstaerke schon voll auf Rot aus), auf 2.0 reduziert fuer mehr Headroom.
+LEVEL_METER_SCALE = 2.0
 
 
 class App(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        super().__init__(fg_color=theme.BG)
         self.title("Diktiertool")
-        self.geometry("640x520")
+        self.geometry("660x560")
 
         self.audio_q: queue.Queue = queue.Queue(maxsize=100)
         self.result_q: queue.Queue = queue.Queue(maxsize=100)
@@ -48,29 +51,52 @@ class App(ctk.CTk):
         self.after(POLL_MS, self._poll)
 
     def _build_widgets(self):
-        top_frame = ctk.CTkFrame(self)
-        top_frame.pack(fill="x", padx=10, pady=10)
+        card = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=theme.CORNER_RADIUS,
+                             border_width=1, border_color=theme.BORDER)
+        card.pack(fill="both", expand=True, padx=16, pady=16)
+
+        title_label = ctk.CTkLabel(card, text="Diktiertool", text_color=theme.GOLD,
+                                    font=ctk.CTkFont(size=20, weight="bold"))
+        title_label.pack(anchor="w", padx=20, pady=(18, 4))
+
+        top_frame = ctk.CTkFrame(card, fg_color="transparent")
+        top_frame.pack(fill="x", padx=20, pady=(4, 12))
 
         self.device_var = ctk.StringVar(value=STANDARD_LABEL)
-        self.device_dropdown = ctk.CTkOptionMenu(top_frame, variable=self.device_var, values=[STANDARD_LABEL])
-        self.device_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.device_dropdown = ctk.CTkOptionMenu(
+            top_frame, variable=self.device_var, values=[STANDARD_LABEL],
+            fg_color=theme.SURFACE_LIGHT, button_color=theme.GOLD, button_hover_color=theme.GOLD_HOVER,
+            text_color=theme.TEXT_PRIMARY, dropdown_fg_color=theme.SURFACE_LIGHT,
+            dropdown_hover_color=theme.GOLD, dropdown_text_color=theme.TEXT_PRIMARY,
+            corner_radius=theme.CORNER_RADIUS_SMALL)
+        self.device_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
-        self.refresh_button = ctk.CTkButton(top_frame, text="Aktualisieren", width=110,
-                                             command=self._refresh_devices)
+        self.refresh_button = ctk.CTkButton(
+            top_frame, text="Aktualisieren", width=110, command=self._refresh_devices,
+            fg_color=theme.SURFACE_LIGHT, hover_color=theme.BORDER, text_color=theme.TEXT_PRIMARY,
+            corner_radius=theme.CORNER_RADIUS_SMALL)
         self.refresh_button.pack(side="left")
 
-        self.start_button = ctk.CTkButton(self, text="Start", command=self._toggle_recording)
-        self.start_button.pack(pady=(0, 5))
+        self.start_button = ctk.CTkButton(
+            card, text="Start", command=self._toggle_recording, width=200, height=40,
+            fg_color=theme.GOLD, hover_color=theme.GOLD_HOVER, text_color=theme.TEXT_ON_ACCENT,
+            font=ctk.CTkFont(size=14, weight="bold"), corner_radius=theme.CORNER_RADIUS_SMALL)
+        self.start_button.pack(pady=(0, 10))
 
-        self.status_label = ctk.CTkLabel(self, text="Initialisiere...")
-        self.status_label.pack(pady=(0, 5))
+        self.status_label = ctk.CTkLabel(card, text="Initialisiere...", text_color=theme.TEXT_SECONDARY,
+                                          font=ctk.CTkFont(size=12))
+        self.status_label.pack(pady=(0, 8))
 
-        self.level_bar = ctk.CTkProgressBar(self, width=300)
-        self.level_bar.set(0)
-        self.level_bar.pack(pady=(0, 10))
+        self.level_bar = LevelMeter(card, width=300, height=8)
+        self.level_bar.pack(pady=(0, 14))
 
-        self.text_box = ctk.CTkTextbox(self, wrap="word")
-        self.text_box.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.text_box = ctk.CTkTextbox(card, wrap="word", fg_color=theme.SURFACE_LIGHT,
+                                        text_color=theme.TEXT_PRIMARY, border_width=1,
+                                        border_color=theme.BORDER, corner_radius=theme.CORNER_RADIUS_SMALL,
+                                        scrollbar_button_color=theme.GOLD,
+                                        scrollbar_button_hover_color=theme.GOLD_HOVER,
+                                        font=ctk.CTkFont(size=13))
+        self.text_box.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         self.text_box.configure(state="disabled")
 
         self._refresh_devices()
@@ -109,7 +135,7 @@ class App(ctk.CTk):
 
         self.writer.start_session()
         self.recording = True
-        self.start_button.configure(text="Stop")
+        self.start_button.configure(text="Stop", fg_color=theme.RECORDING, hover_color=theme.RECORDING_HOVER)
         self.device_dropdown.configure(state="disabled")
         self.refresh_button.configure(state="disabled")
         self._set_status("Nimmt auf...")
@@ -117,7 +143,7 @@ class App(ctk.CTk):
     def _stop_recording(self):
         self.capture.stop()
         self.recording = False
-        self.start_button.configure(text="Start")
+        self.start_button.configure(text="Start", fg_color=theme.GOLD, hover_color=theme.GOLD_HOVER)
         self.device_dropdown.configure(state="normal")
         self.refresh_button.configure(state="normal")
         self._set_status("Bereit")
@@ -126,7 +152,7 @@ class App(ctk.CTk):
         if self.recording:
             self.capture.stop()
             self.recording = False
-            self.start_button.configure(text="Start")
+            self.start_button.configure(text="Start", fg_color=theme.GOLD, hover_color=theme.GOLD_HOVER)
             self.device_dropdown.configure(state="normal")
             self.refresh_button.configure(state="normal")
         self._set_status(f"Fehler: {message} – Gerät neu auswählen und Start drücken")
@@ -172,7 +198,7 @@ class App(ctk.CTk):
 
 
 def main():
-    ctk.set_appearance_mode("system")
+    ctk.set_appearance_mode("dark")
     app = App()
     app.mainloop()
 
