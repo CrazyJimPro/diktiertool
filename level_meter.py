@@ -2,11 +2,11 @@ import tkinter as tk
 
 import theme
 
-# (Position 0-1 auf dem Balken, RGB) - gruen bei ruhiger Sprache, rot nahe Uebersteuerung
+# (Position 0-1 auf dem Balken, RGB) - Salbei bei ruhiger Sprache, Rost nahe Uebersteuerung
 GRADIENT_STOPS = [
-    (0.0, (0x5F, 0xA0, 0x60)),
-    (0.6, (0xD9, 0xB2, 0x3C)),
-    (1.0, (0xC4, 0x45, 0x3D)),
+    (0.0, (0x7E, 0x94, 0x70)),
+    (0.6, (0xD4, 0xA2, 0x4C)),
+    (1.0, (0xA8, 0x52, 0x3A)),
 ]
 
 

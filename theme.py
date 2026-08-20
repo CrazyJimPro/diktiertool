@@ -1,20 +1,26 @@
-# Dunkles Luxus-Theme, angelehnt an das 3D-Hyperrealism-Referenzdesign (Gold auf Anthrazit).
-# customtkinter kann keine echten 3D-/Licht-/Metalleffekte, daher flache Farben + Layering.
+# Helles, organisches Theme (Salbeigruen/Terrakotta/Sand), abgeloest vom dunklen Gold-Theme
+# auf Nutzerwunsch (zu duester). customtkinter kann keine echten Blob-Formen zeichnen,
+# daher grosszuegige Rundungen als Annaeherung an "organisch/weich" statt harter Kanten.
 
-BG = "#141414"
-SURFACE = "#1e1e1e"
-SURFACE_LIGHT = "#282828"
-BORDER = "#3a3a3a"
+BG = "#F3EEE2"
+SURFACE = "#FBF8F1"
+SURFACE_LIGHT = "#EFE7D6"
+BORDER = "#DDD2B8"
 
-GOLD = "#C9A227"
-GOLD_HOVER = "#E4BE45"
+TERRACOTTA = "#C97B5E"
+TERRACOTTA_HOVER = "#B56A4E"
 
-RECORDING = "#B7524A"
-RECORDING_HOVER = "#CC6259"
+SAGE = "#7E9470"
+SAGE_HOVER = "#6C8060"
 
-TEXT_PRIMARY = "#F2F0EA"
-TEXT_SECONDARY = "#9C9690"
-TEXT_ON_ACCENT = "#141414"
+RECORDING = "#A8523A"
+RECORDING_HOVER = "#96482F"
 
-CORNER_RADIUS = 14
-CORNER_RADIUS_SMALL = 8
+TEXT_PRIMARY = "#3D3529"
+TEXT_SECONDARY = "#7A6F5C"
+TEXT_ON_ACCENT = "#FBF8F1"
+
+CORNER_RADIUS = 20
+CORNER_RADIUS_SMALL = 14
+
+TITLE_FONT_FAMILY = "DejaVu Serif"

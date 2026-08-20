@@ -69,8 +69,8 @@ class App(ctk.CTk):
                              border_width=1, border_color=theme.BORDER)
         card.pack(fill="both", expand=True, padx=16, pady=16)
 
-        title_label = ctk.CTkLabel(card, text="Diktiertool", text_color=theme.GOLD,
-                                    font=ctk.CTkFont(size=20, weight="bold"))
+        title_label = ctk.CTkLabel(card, text="Diktiertool", text_color=theme.SAGE,
+                                    font=ctk.CTkFont(family=theme.TITLE_FONT_FAMILY, size=22, weight="bold"))
         title_label.pack(anchor="w", padx=20, pady=(18, 4))
 
         top_frame = ctk.CTkFrame(card, fg_color="transparent")
@@ -79,9 +79,9 @@ class App(ctk.CTk):
         self.device_var = ctk.StringVar(value=STANDARD_LABEL)
         self.device_dropdown = ctk.CTkOptionMenu(
             top_frame, variable=self.device_var, values=[STANDARD_LABEL],
-            fg_color=theme.SURFACE_LIGHT, button_color=theme.GOLD, button_hover_color=theme.GOLD_HOVER,
+            fg_color=theme.SURFACE_LIGHT, button_color=theme.SAGE, button_hover_color=theme.SAGE_HOVER,
             text_color=theme.TEXT_PRIMARY, dropdown_fg_color=theme.SURFACE_LIGHT,
-            dropdown_hover_color=theme.GOLD, dropdown_text_color=theme.TEXT_PRIMARY,
+            dropdown_hover_color=theme.SAGE, dropdown_text_color=theme.TEXT_PRIMARY,
             corner_radius=theme.CORNER_RADIUS_SMALL)
         self.device_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
@@ -93,8 +93,8 @@ class App(ctk.CTk):
 
         self.start_button = ctk.CTkButton(
             card, text="Start", command=self._toggle_recording, width=200, height=40,
-            fg_color=theme.GOLD, hover_color=theme.GOLD_HOVER, text_color=theme.TEXT_ON_ACCENT,
-            font=ctk.CTkFont(size=14, weight="bold"), corner_radius=theme.CORNER_RADIUS_SMALL)
+            fg_color=theme.TERRACOTTA, hover_color=theme.TERRACOTTA_HOVER, text_color=theme.TEXT_ON_ACCENT,
+            font=ctk.CTkFont(size=14, weight="bold"), corner_radius=20)
         self.start_button.pack(pady=(0, 10))
 
         self.status_label = ctk.CTkLabel(card, text="Initialisiere...", text_color=theme.TEXT_SECONDARY,
@@ -107,8 +107,8 @@ class App(ctk.CTk):
         self.text_box = ctk.CTkTextbox(card, wrap="word", fg_color=theme.SURFACE_LIGHT,
                                         text_color=theme.TEXT_PRIMARY, border_width=1,
                                         border_color=theme.BORDER, corner_radius=theme.CORNER_RADIUS_SMALL,
-                                        scrollbar_button_color=theme.GOLD,
-                                        scrollbar_button_hover_color=theme.GOLD_HOVER,
+                                        scrollbar_button_color=theme.SAGE,
+                                        scrollbar_button_hover_color=theme.SAGE_HOVER,
                                         font=ctk.CTkFont(size=13))
         self.text_box.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         self.text_box.configure(state="disabled")
@@ -157,7 +157,7 @@ class App(ctk.CTk):
     def _stop_recording(self):
         self.capture.stop()
         self.recording = False
-        self.start_button.configure(text="Start", fg_color=theme.GOLD, hover_color=theme.GOLD_HOVER)
+        self.start_button.configure(text="Start", fg_color=theme.TERRACOTTA, hover_color=theme.TERRACOTTA_HOVER)
         self.device_dropdown.configure(state="normal")
         self.refresh_button.configure(state="normal")
         self._set_status("Bereit")
@@ -166,7 +166,7 @@ class App(ctk.CTk):
         if self.recording:
             self.capture.stop()
             self.recording = False
-            self.start_button.configure(text="Start", fg_color=theme.GOLD, hover_color=theme.GOLD_HOVER)
+            self.start_button.configure(text="Start", fg_color=theme.TERRACOTTA, hover_color=theme.TERRACOTTA_HOVER)
             self.device_dropdown.configure(state="normal")
             self.refresh_button.configure(state="normal")
         self._set_status(f"Fehler: {message} – Gerät neu auswählen und Start drücken")
@@ -212,7 +212,7 @@ class App(ctk.CTk):
 
 
 def main():
-    ctk.set_appearance_mode("dark")
+    ctk.set_appearance_mode("light")
     app = App()
     app.mainloop()
 
