@@ -5,11 +5,18 @@ der erkannte Text erscheint live in einem kleinen Fenster und wird laufend in `d
 gespeichert. Die Spracherkennung läuft komplett offline auf diesem Rechner (faster-whisper) –
 es wird kein Audio an einen Server geschickt, und `diktat.txt` bleibt lokal (siehe unten).
 
+Die Oberfläche (`web/index.html`, `style.css`, `app.js`) ist echtes HTML/CSS/JS, angezeigt in
+einem nativen Fenster über [pywebview](https://pywebview.flowrl.com/) (GTK/WebKit2-Backend) –
+nicht mehr customtkinter. Grund: nur so sind die weichen organischen Formen, Verlaufsfarben
+und Animationen des aktuellen Designs technisch möglich. `gui.py` bindet Python (Mikrofon,
+Whisper, Datei-Schreiben) per `js_api`/`evaluate_js` an die Oberfläche an.
+
 ## Voraussetzungen
 
-- Linux mit Python 3.12 und den System-Paketen `python3-tk`, `python3-venv` und
-  `libportaudio2` (werden von `setup.sh` geprüft; falls etwas fehlt, zeigt es den
-  passenden `apt install`-Befehl)
+- Linux mit Python 3.12 und den System-Paketen `python3-venv`, `libportaudio2`,
+  `python3-gi`, `python3-gi-cairo`, `gir1.2-gtk-3.0` und `gir1.2-webkit2-4.1` (GUI läuft
+  über pywebview mit GTK/WebKit2-Backend, siehe unten; alle Pakete werden von `setup.sh`
+  geprüft, falls etwas fehlt zeigt es den passenden `apt install`-Befehl)
 - Internetverbindung nur für den einmaligen Modell-Download beim ersten Start
 
 ## Installation auf einem neuen Rechner

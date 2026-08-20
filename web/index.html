@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Diktiertool</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="card">
+    <div class="header">
+      <h1>Diktiertool</h1>
+      <span class="version" id="versionLabel" title="Release-Seite öffnen"></span>
+      <span class="update-badge" id="updateBadge" hidden></span>
+    </div>
+
+    <div class="controls-row">
+      <select class="device-select" id="deviceSelect"></select>
+      <button class="btn-secondary" id="refreshButton">Aktualisieren</button>
+    </div>
+
+    <button class="btn-primary" id="startButton" disabled>Start</button>
+
+    <div class="status" id="status">Initialisiere...</div>
+
+    <div class="level-meter">
+      <div class="level-fill" id="levelFill"></div>
+    </div>
+
+    <div class="text-output" id="textOutput">
+      <p class="placeholder" id="placeholder">Erkannter Text erscheint hier …</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
