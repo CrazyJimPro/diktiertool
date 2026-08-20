@@ -16,6 +16,8 @@ SAGE_HOVER = "#6C8060"
 RECORDING = "#A8523A"
 RECORDING_HOVER = "#96482F"
 
+AMBER = "#D4A24C"  # gleicher Ton wie der mittlere Pegelanzeige-Farbverlauf
+
 TEXT_PRIMARY = "#3D3529"
 TEXT_SECONDARY = "#7A6F5C"
 TEXT_ON_ACCENT = "#FBF8F1"

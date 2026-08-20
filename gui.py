@@ -3,12 +3,15 @@ import os
 import queue
 import threading
 import time
+import webbrowser
 
 import customtkinter as ctk
 import sounddevice as sd
 
+import config
 import theme
 from level_meter import LevelMeter
+from update_check import REPO, get_latest_version, is_newer
 from audio_capture import AudioCapture, list_input_devices
 from transcriber import Transcriber
 from file_writer import FileWriter
@@ -62,16 +65,39 @@ class App(ctk.CTk):
                           "kann einige Minuten dauern)...")
         self.transcriber.start()
 
+        threading.Thread(target=self._check_for_update, daemon=True).start()
+
         self.after(POLL_MS, self._poll)
+
+    def _check_for_update(self):
+        latest = get_latest_version()
+        if latest and is_newer(latest, config.VERSION):
+            try:
+                self.result_q.put_nowait({"type": "update_available", "version": latest})
+            except queue.Full:
+                pass
 
     def _build_widgets(self):
         card = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=theme.CORNER_RADIUS,
                              border_width=1, border_color=theme.BORDER)
         card.pack(fill="both", expand=True, padx=16, pady=16)
 
-        title_label = ctk.CTkLabel(card, text="Diktiertool", text_color=theme.SAGE,
+        header_frame = ctk.CTkFrame(card, fg_color="transparent")
+        header_frame.pack(fill="x", padx=20, pady=(18, 4))
+
+        title_label = ctk.CTkLabel(header_frame, text="Diktiertool", text_color=theme.SAGE,
                                     font=ctk.CTkFont(family=theme.TITLE_FONT_FAMILY, size=22, weight="bold"))
-        title_label.pack(anchor="w", padx=20, pady=(18, 4))
+        title_label.pack(side="left")
+
+        version_label = ctk.CTkLabel(header_frame, text=f"v{config.VERSION}", text_color=theme.TEXT_SECONDARY,
+                                      font=ctk.CTkFont(size=11), cursor="hand2")
+        version_label.pack(side="left", padx=(8, 0), pady=(10, 0))
+        version_label.bind("<Button-1>", lambda e: webbrowser.open(f"https://github.com/{REPO}/releases"))
+
+        self.update_badge = ctk.CTkLabel(header_frame, text="", text_color=theme.TEXT_ON_ACCENT,
+                                          fg_color=theme.AMBER, corner_radius=theme.CORNER_RADIUS_SMALL,
+                                          font=ctk.CTkFont(size=11, weight="bold"), cursor="hand2")
+        # Wird erst bei einem gefundenen Update gepackt (siehe _show_update_badge)
 
         top_frame = ctk.CTkFrame(card, fg_color="transparent")
         top_frame.pack(fill="x", padx=20, pady=(4, 12))
@@ -127,6 +153,12 @@ class App(ctk.CTk):
     def _set_status(self, text: str):
         self.status_label.configure(text=text)
 
+    def _show_update_badge(self, version: str):
+        self.update_badge.configure(text=f"Update verfügbar: v{version}")
+        self.update_badge.bind(
+            "<Button-1>", lambda e: webbrowser.open(f"https://github.com/{REPO}/releases/tag/v{version}"))
+        self.update_badge.pack(side="left", padx=(10, 0), pady=(6, 0), ipadx=8, ipady=3)
+
     def _append_text(self, text: str):
         self.text_box.configure(state="normal")
         self.text_box.insert("end", text + "\n")
@@ -181,6 +213,8 @@ class App(ctk.CTk):
                 elif msg["type"] == "text":
                     self._append_text(msg["text"])
                     self.writer.write(msg["text"])
+                elif msg["type"] == "update_available":
+                    self._show_update_badge(msg["version"])
         except queue.Empty:
             pass
 

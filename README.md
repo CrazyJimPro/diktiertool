@@ -91,6 +91,10 @@ ausschließlich auf diesem Rechner.
   Gerät neu auswählen und "Start" erneut drücken.
 - Bei reinem Hintergrundgeräusch (ohne echte Sprache) kann die Erkennung gelegentlich kurze,
   erfundene Textschnipsel einfügen (bekanntes Whisper-Verhalten bei Stille).
+- Beim Start prüft das Tool im Hintergrund per `gh` (nicht der rohen GitHub-API, da das
+  Repo privat ist), ob eine neuere Version released wurde, und zeigt dann im Header einen
+  Hinweis-Badge (Klick öffnet die Release-Seite). Ist `gh` nicht installiert oder nicht
+  angemeldet, bleibt der Badge einfach weg – kein Fehler, kein blockierter Start.
 
 ## Modellgröße ändern
 
