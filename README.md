@@ -83,6 +83,28 @@ Bei Bedarf einzeln erneut ausführbar (z. B. falls das Icon versehentlich gelös
 ./install-desktop-entry.sh
 ```
 
+## Update
+
+Beim Start prüft das Tool im Hintergrund per `gh` (nicht die rohe GitHub-API, da das Repo
+privat ist), ob eine neuere Version released wurde. Ist eine verfügbar, erscheint neben der
+Versionsnummer im Header ein Hinweis-Badge, z. B. "Update verfügbar: v0.8.0" – ein Klick
+darauf öffnet die passende Release-Seite auf GitHub. Ist `gh` nicht installiert oder nicht
+angemeldet, bleibt der Badge einfach weg, kein Fehler, kein blockierter Start.
+
+Zum Aktualisieren:
+
+```
+cd ~/diktiertool   # oder wo auch immer installiert
+git pull
+./setup.sh
+```
+
+`./setup.sh` danach nicht weglassen, auch wenn es manchmal nur `git pull` bräuchte – es
+prüft zusätzlich auf neue System-Pakete/Abhängigkeiten und richtet sie bei Bedarf ein, ist
+aber schnell durchgelaufen, wenn sich nichts geändert hat. Zeigt es fehlende Pakete an, den
+vorgeschlagenen `sudo apt install ...`-Befehl ausführen und `./setup.sh` erneut starten.
+Danach wie gewohnt `./start.sh` oder über die Desktop-Verknüpfung starten.
+
 ## Ausgabe
 
 Erkannter Text landet fortlaufend in `diktat.txt` im Projektordner, jede Sitzung mit einem
@@ -98,10 +120,6 @@ ausschließlich auf diesem Rechner.
   Gerät neu auswählen und "Start" erneut drücken.
 - Bei reinem Hintergrundgeräusch (ohne echte Sprache) kann die Erkennung gelegentlich kurze,
   erfundene Textschnipsel einfügen (bekanntes Whisper-Verhalten bei Stille).
-- Beim Start prüft das Tool im Hintergrund per `gh` (nicht der rohen GitHub-API, da das
-  Repo privat ist), ob eine neuere Version released wurde, und zeigt dann im Header einen
-  Hinweis-Badge (Klick öffnet die Release-Seite). Ist `gh` nicht installiert oder nicht
-  angemeldet, bleibt der Badge einfach weg – kein Fehler, kein blockierter Start.
 
 ## Modellgröße ändern
 
