@@ -247,13 +247,40 @@ body.glass .theme-toggle .icon-sun { display: block; }
 }
 .device-select {
   flex: 1;
-  padding: 12px 16px;
+  padding: 12px 40px 12px 16px;
   border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface-light);
   color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
+  /* Ohne appearance: none rendert WebKit2GTK (die echte Laufzeitumgebung,
+     nicht dieser Chromium-Vorschau-Browser) das geschlossene Element
+     vermutlich als natives GTK-Widget, das --surface-light/--text-primary
+     ignoriert - je nach System-Theme z.B. helle Schrift auf einem
+     hellen/weissen Systemhintergrund, praktisch unsichtbar. Eigener
+     Dropdown-Pfeil per background-image, weil appearance: none den
+     eingebauten mit entfernt. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237a6f5c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+}
+.device-select option {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+/* Der Pfeil ist ein SVG-Data-URI, kann also kein var(--text-secondary)
+   referenzieren (wird als eigenstaendige Ressource geparst, nicht als CSS)
+   - je Theme eine eigene, fest eingefaerbte Fassung. */
+body.dark .device-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b3a48c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+body.glass .device-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 .btn-secondary {
   padding: 12px 20px;
