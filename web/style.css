@@ -20,6 +20,33 @@
   --text-on-accent: #fbf8f1;
 }
 
+/* Dunkles Design: dieselbe warme Organic-Biomorphic-Palette, nur invertiert -
+   bewusst KEIN kaltes Navy/Gold wie beim fruehen v0.3.0-Reskin, das der
+   Nutzer als "zu duester" wieder verworfen hat. Akzentfarben (Terrakotta,
+   Amber, Recording-Rot) bleiben nah am Original, weil sie als Button-
+   Hintergrund mit hellem --text-on-accent-Text funktionieren muessen -
+   nur Sage (reine Akzent-Textfarbe auf der Ueberschrift) wird spuerbar
+   aufgehellt, damit es auf dunklem Grund traegt. */
+body.dark {
+  --bg: #241f1a;
+  --surface: #2e2620;
+  --surface-light: #382e26;
+  --border: #4a3c2e;
+
+  --terracotta: #d68f66;
+  --terracotta-2: #e0a377;
+  --sage: #a3c191;
+  --sage-2: #c3dab5;
+
+  --recording: #c96c4f;
+  --recording-2: #d97e5c;
+  --amber: #d4a24c;
+
+  --text-primary: #f1e8da;
+  --text-secondary: #b3a48c;
+  --text-on-accent: #fbf8f1;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -115,6 +142,27 @@ body {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.04); }
 }
+
+.theme-toggle {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-light);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.theme-toggle:hover { background: var(--border); color: var(--text-primary); transform: translateY(-1px); }
+.theme-toggle svg { width: 17px; height: 17px; }
+.theme-toggle .icon-sun { display: none; }
+body.dark .theme-toggle .icon-moon { display: none; }
+body.dark .theme-toggle .icon-sun { display: block; }
 
 .controls-row {
   display: flex;

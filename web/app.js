@@ -7,6 +7,7 @@ const deviceSelect = document.getElementById("deviceSelect");
 const refreshButton = document.getElementById("refreshButton");
 const versionLabel = document.getElementById("versionLabel");
 const updateBadge = document.getElementById("updateBadge");
+const themeToggle = document.getElementById("themeToggle");
 
 window.addEventListener("pywebviewready", () => {
   startButton.addEventListener("click", () => pywebview.api.toggle_recording(deviceSelect.value));
@@ -14,6 +15,21 @@ window.addEventListener("pywebviewready", () => {
   versionLabel.addEventListener("click", () => pywebview.api.open_url(versionLabel.dataset.url));
   updateBadge.addEventListener("click", () => pywebview.api.open_url(updateBadge.dataset.url));
 });
+
+// Unabhaengig von pywebviewready registriert (kein Python-Aufruf noetig) -
+// das Umschalten selbst ist reines CSS/localStorage, die Klasse wurde vom
+// blockierenden Inline-Script oben schon vor dem ersten Paint gesetzt.
+updateThemeToggleLabel();
+themeToggle.addEventListener("click", () => {
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+  updateThemeToggleLabel();
+});
+
+function updateThemeToggleLabel() {
+  const isDark = document.body.classList.contains("dark");
+  themeToggle.setAttribute("aria-label", isDark ? "Helles Design verwenden" : "Dunkles Design verwenden");
+}
 
 // Ab hier: Funktionen, die Python per evaluate_js() aufruft.
 
