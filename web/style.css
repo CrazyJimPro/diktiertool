@@ -14,6 +14,7 @@
   --recording: #a8523a;
   --recording-2: #c96c4f;
   --amber: #d4a24c;
+  --amber-2: #c78f3a;
 
   --text-primary: #3d3529;
   --text-secondary: #7a6f5c;
@@ -41,10 +42,48 @@ body.dark {
   --recording: #c96c4f;
   --recording-2: #d97e5c;
   --amber: #d4a24c;
+  --amber-2: #c78f3a;
 
   --text-primary: #f1e8da;
   --text-secondary: #b3a48c;
   --text-on-accent: #fbf8f1;
+}
+
+/* Drittes Design: Glassmorphism, direkt nach
+   claudekit.github.io/frontend-design-pro-demo/03-glassmorphism.html -
+   dieselbe Indigo->Violett->Pink/Blau-Palette wie bei monatsausgaben-app und
+   abo-tracker. Variablennamen (--sage, --terracotta, ...) bleiben wie sie
+   sind, auch wenn die Werte hier nichts mehr mit Salbei/Terrakotta zu tun
+   haben - ein Rename haette jede verbrauchende Regel im ganzen File
+   angefasst, fuer ein drittes Theme nicht verhaeltnismaessig. */
+body.glass {
+  --bg: #1e1b4b;
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-light: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.2);
+
+  --terracotta: #f472b6;
+  --terracotta-2: #ec4899;
+  --sage: #f472b6;
+  --sage-2: #f9a8d4;
+
+  --recording: #f43f5e;
+  --recording-2: #fb7185;
+  --amber: #60a5fa;
+  --amber-2: #3b82f6;
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-on-accent: #ffffff;
+
+  --body-bg: linear-gradient(
+    135deg,
+    #1e1b4b 0%,
+    #312e81 25%,
+    #4c1d95 50%,
+    #7c3aed 75%,
+    #6366f1 100%
+  );
 }
 
 * { box-sizing: border-box; }
@@ -58,7 +97,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 20% 15%, #f8f3e6 0%, var(--bg) 55%);
+  /* Fallback fuer :root/dark, die kein --body-bg definieren - der Fallback
+     selbst darf var(--bg) referenzieren, das loest sich im jeweils
+     aktuellen Scope korrekt auf. */
+  background: var(--body-bg, radial-gradient(circle at 20% 15%, #f8f3e6 0%, var(--bg) 55%));
   font-family: 'Quicksand', sans-serif;
   color: var(--text-primary);
   overflow: hidden;
@@ -107,6 +149,27 @@ body {
     0 10px 20px -8px rgba(122, 90, 60, 0.12);
 }
 
+/* Unter .glass werden Karte und die uebrigen Oberflaechen zu echtem
+   durchscheinendem Glas - der warmbraune Schatten des Originals passt nicht
+   mehr, und ohne backdrop-filter waere --surface's rgba(255,255,255,0.1)
+   kaum sichtbar (kein Verlaufshintergrund, ueber den es sich abheben
+   koennte). Anders als bei monatsausgaben-app gibt es hier keinen
+   CSS-Minifier, der eine handgeschriebene backdrop-filter-Zeile entfernen
+   koennte (dieses Stylesheet wird unveraendert ausgeliefert) - normale
+   Eigenschaftsreihenfolge reicht. */
+body.glass .card {
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.35), 0 10px 20px -8px rgba(0, 0, 0, 0.2);
+}
+body.glass .card,
+body.glass .text-output,
+body.glass .device-select,
+body.glass .btn-secondary,
+body.glass .level-meter,
+body.glass .theme-toggle {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
 .header {
   display: flex;
   align-items: baseline;
@@ -127,7 +190,7 @@ body {
   text-decoration: underline dotted;
 }
 .update-badge {
-  background: linear-gradient(135deg, var(--amber), #c78f3a);
+  background: linear-gradient(135deg, var(--amber), var(--amber-2));
   color: var(--text-on-accent);
   font-size: 11px;
   font-weight: 700;
@@ -160,9 +223,22 @@ body {
 }
 .theme-toggle:hover { background: var(--border); color: var(--text-primary); transform: translateY(-1px); }
 .theme-toggle svg { width: 17px; height: 17px; }
-.theme-toggle .icon-sun { display: none; }
-body.dark .theme-toggle .icon-moon { display: none; }
-body.dark .theme-toggle .icon-sun { display: block; }
+
+/* Zeigt jeweils das Icon des naechsten Designs im Kreis (hell -> dunkel ->
+   glass -> hell), nicht das aktuelle - so war es schon vor dem dritten
+   Design angelegt (Mond in Hell = "zu Dunkel wechseln"), hier nur auf drei
+   Zustaende erweitert statt das Prinzip zu aendern. */
+.theme-toggle .icon-sun,
+.theme-toggle .icon-glass { display: none; }
+.theme-toggle .icon-moon { display: block; }
+
+body.dark .theme-toggle .icon-moon,
+body.dark .theme-toggle .icon-sun { display: none; }
+body.dark .theme-toggle .icon-glass { display: block; }
+
+body.glass .theme-toggle .icon-moon,
+body.glass .theme-toggle .icon-glass { display: none; }
+body.glass .theme-toggle .icon-sun { display: block; }
 
 .controls-row {
   display: flex;

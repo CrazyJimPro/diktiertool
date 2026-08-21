@@ -19,16 +19,33 @@ window.addEventListener("pywebviewready", () => {
 // Unabhaengig von pywebviewready registriert (kein Python-Aufruf noetig) -
 // das Umschalten selbst ist reines CSS/localStorage, die Klasse wurde vom
 // blockierenden Inline-Script oben schon vor dem ersten Paint gesetzt.
+const THEMES = ["light", "dark", "glass"];
+const THEME_LABELS = {
+  light: "Helles Design",
+  dark: "Dunkles Design",
+  glass: "Glass-Design (Indigo/Pink)",
+};
+
+function currentTheme() {
+  if (document.body.classList.contains("dark")) return "dark";
+  if (document.body.classList.contains("glass")) return "glass";
+  return "light";
+}
+
 updateThemeToggleLabel();
 themeToggle.addEventListener("click", () => {
-  const isDark = document.body.classList.toggle("dark");
-  localStorage.setItem("theme", isDark ? "dark" : "light");
+  const next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
+  document.body.classList.remove("dark", "glass");
+  if (next !== "light") document.body.classList.add(next);
+  localStorage.setItem("theme", next);
   updateThemeToggleLabel();
 });
 
 function updateThemeToggleLabel() {
-  const isDark = document.body.classList.contains("dark");
-  themeToggle.setAttribute("aria-label", isDark ? "Helles Design verwenden" : "Dunkles Design verwenden");
+  const current = currentTheme();
+  const next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
+  themeToggle.setAttribute("aria-label", `Zu "${THEME_LABELS[next]}" wechseln`);
+  themeToggle.title = THEME_LABELS[current];
 }
 
 // Ab hier: Funktionen, die Python per evaluate_js() aufruft.

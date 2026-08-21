@@ -4,7 +4,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 OUTPUT_FILE = PROJECT_DIR / "diktat.txt"
 
 # Bei jedem Release manuell mit dem neuen Git-Tag synchron halten (siehe update_check.py)
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 
 # Whisper
 MODEL_SIZE = "small"
