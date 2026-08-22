@@ -77,7 +77,10 @@ class App:
         )
         self.window.events.loaded += self._on_page_loaded
         self.window.events.closing += self._on_close
-        webview.start()
+        # private_mode=True ist pywebviews Default und deaktiviert auf GTK
+        # HTML5-localStorage komplett (ephemeral WebContext) - ohne dies wird
+        # die Theme-Wahl (localStorage) bei jedem Neustart verworfen.
+        webview.start(private_mode=False)
 
     def _js(self, code: str):
         try:
