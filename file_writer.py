@@ -12,6 +12,10 @@ class FileWriter:
 
     def __init__(self, path: Path = OUTPUT_FILE):
         self.path = path
+        # Unter Windows liegt die Datei in Dokumente\Diktiertool - ein Ordner,
+        # den es beim allerersten Start noch nicht gibt (unter Linux ist es der
+        # Projektordner, dort ist das ein No-op).
+        self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def start_session(self):
         header = f"\n--- {datetime.now().strftime('%Y-%m-%d %H:%M')} ---\n"

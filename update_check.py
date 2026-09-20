@@ -1,24 +1,40 @@
-import subprocess
+import json
+import urllib.error
+import urllib.request
 
 REPO = "CrazyJimPro/diktiertool"
+API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 
 
 def get_latest_version() -> str | None:
-    """Fragt die neueste GitHub-Release-Version ab. Laeuft ueber gh (nicht die rohe
-    GitHub-API), weil das Repo privat ist - ein unauthentifizierter Request wuerde nur
-    ein 404 liefern. Gibt bei jedem Fehler (gh fehlt, nicht angemeldet, kein Netz,
-    Timeout) None zurueck statt zu werfen - der Update-Check ist ein Nice-to-have und
-    darf den Programmstart nie verzoegern oder zum Absturz bringen."""
+    """Fragt die neueste GitHub-Release-Version ab.
+
+    Lief frueher ueber die GitHub CLI (gh), weil das Repo privat war und ein
+    unauthentifizierter Request nur ein 404 geliefert haette. Seit das Repo
+    oeffentlich ist, geht das direkt ueber die API - wichtig fuer Windows, wo
+    gh so gut wie nie installiert ist und der Update-Hinweis sonst dauerhaft
+    ausbliebe. Das Limit von 60 Anfragen pro Stunde und IP reicht dafuer
+    reichlich: es wird einmal pro Programmstart gefragt.
+
+    Gibt bei jedem Fehler (kein Netz, Timeout, unerwartete Antwort) None
+    zurueck statt zu werfen - der Update-Check ist ein Nice-to-have und darf
+    den Programmstart nie verzoegern oder zum Absturz bringen.
+    """
+    request = urllib.request.Request(
+        API_URL,
+        headers={
+            "Accept": "application/vnd.github+json",
+            # GitHub beantwortet Requests ohne User-Agent grundsaetzlich mit 403.
+            "User-Agent": "diktiertool-update-check",
+        },
+    )
     try:
-        result = subprocess.run(
-            ["gh", "api", f"repos/{REPO}/releases/latest", "--jq", ".tag_name"],
-            capture_output=True, text=True, timeout=5,
-        )
-    except (subprocess.SubprocessError, OSError):
+        with urllib.request.urlopen(request, timeout=5) as response:
+            tag = json.load(response).get("tag_name", "")
+    except (urllib.error.URLError, OSError, ValueError, json.JSONDecodeError):
         return None
-    if result.returncode != 0:
-        return None
-    tag = result.stdout.strip()
+
+    tag = tag.strip()
     return (tag[1:] if tag.startswith("v") else tag) or None
 
 

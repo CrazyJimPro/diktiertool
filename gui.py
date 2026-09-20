@@ -43,13 +43,25 @@ class Api:
     pywebview.api.<name>(...) aufrufbar."""
 
     def __init__(self, app: "App"):
-        self.app = app
+        # Der Unterstrich ist nicht nur Stil, er ist noetig: pywebview geht
+        # dieses Objekt beim Start rekursiv durch, um die aufrufbaren Methoden
+        # zu ermitteln, und ueberspringt dabei nur Attribute, deren Name mit
+        # "_" beginnt. Hiess das Attribut "app", lief die Suche ueber
+        # app.window weiter bis window.native - unter Windows das
+        # WinForms-Fensterobjekt, dessen .NET-Eigenschaften zyklisch sind
+        # (DefaultFont.FontFamily.GenericSansSerif.GenericSansSerif...). Jeder
+        # Zugriff erzeugt dabei ein neues Wrapper-Objekt mit neuer id, womit
+        # auch pywebviews eigener Zyklusschutz ins Leere lief: beim Start
+        # rauschten tausende .NET-Zugriffe und 150KB
+        # "maximum recursion depth exceeded" ueber die Fehlerausgabe. Unter
+        # GTK faellt das nicht auf, dort ist window.native harmlos.
+        self._app = app
 
     def toggle_recording(self, device_label=None):
-        self.app.toggle_recording(device_label)
+        self._app.toggle_recording(device_label)
 
     def refresh_devices(self, current_label=None):
-        self.app.refresh_devices(current_label)
+        self._app.refresh_devices(current_label)
 
     def open_url(self, url):
         webbrowser.open(url)

@@ -1,4 +1,5 @@
 import queue
+import sys
 import threading
 import time
 
@@ -16,9 +17,60 @@ from config import (
 )
 
 
+def _wasapi_hostapi_index():
+    """Index der WASAPI-Host-API, oder None (auch auf allem ausser Windows)."""
+    if sys.platform != "win32":
+        return None
+    for idx, hostapi in enumerate(sd.query_hostapis()):
+        if "WASAPI" in hostapi["name"]:
+            return idx
+    return None
+
+
+def _is_wasapi_device(device) -> bool:
+    if _wasapi_hostapi_index() is None:
+        return False
+    try:
+        info = sd.query_devices(device if device is not None else sd.default.device[0])
+        return "WASAPI" in sd.query_hostapis(info["hostapi"])["name"]
+    except (sd.PortAudioError, ValueError, TypeError):
+        return False
+
+
+def wasapi_extra_settings(device):
+    """WASAPI laeuft im Shared Mode mit dem Mischformat des Geraets (meist
+    48kHz) und lehnt einen 16kHz-Stream sonst rundheraus ab ("Invalid sample
+    rate"). auto_convert schaltet die Abtastratenwandlung von PortAudio an.
+    Nur fuer WASAPI-Geraete - an einem MME-Geraet wuerde die Einstellung
+    ihrerseits einen Fehler ausloesen."""
+    if _is_wasapi_device(device):
+        return sd.WasapiSettings(auto_convert=True)
+    return None
+
+
 def list_input_devices():
-    """Liefert (index, name) für alle Geräte mit Mikrofon-Eingang."""
+    """Liefert (index, name) für alle Geräte mit Mikrofon-Eingang.
+
+    Unter Windows nur die der WASAPI-Host-API: PortAudio meldet dort jedes
+    Mikrofon einmal pro Host-API (MME, DirectSound, WASAPI, WDM-KS), ein
+    einziges Headset erscheint in der Liste also bis zu sechsmal. MME kuerzt
+    Geraetenamen zudem hart auf 31 Zeichen ("Mikrofon (High Definition Audio"
+    ohne schliessende Klammer). WASAPI ist die moderne Schnittstelle, liefert
+    vollstaendige Namen und kennt jedes Geraet genau einmal."""
     devices = sd.query_devices()
+    wasapi = _wasapi_hostapi_index()
+
+    if wasapi is not None:
+        wasapi_inputs = [
+            (idx, d["name"])
+            for idx, d in enumerate(devices)
+            if d["max_input_channels"] > 0 and d["hostapi"] == wasapi
+        ]
+        # Nur wenn WASAPI ueberhaupt Geraete meldet - sonst lieber die
+        # vollstaendige (unschoene) Liste als gar keine Auswahl.
+        if wasapi_inputs:
+            return wasapi_inputs
+
     return [
         (idx, d["name"])
         for idx, d in enumerate(devices)
@@ -120,6 +172,7 @@ class AudioCapture:
                 device=self.device,
                 callback=self._callback,
                 finished_callback=self._on_finished,
+                extra_settings=wasapi_extra_settings(self.device),
             )
             self.last_callback_time = time.monotonic()
             self.stream.start()

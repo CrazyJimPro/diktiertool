@@ -1,6 +1,7 @@
 import os
 import queue
 import threading
+from pathlib import Path
 
 # Muss vor dem faster_whisper-Import gesetzt werden: oneDNN waehlt auf dieser
 # AMD-CPU sonst standardmaessig AVX-512-Kernel, die hier reproduzierbar zu
@@ -8,6 +9,22 @@ import threading
 # Core-Dump-Analyse). AVX2 ist auf 16 Kernen immer noch mehr als schnell genug.
 os.environ.setdefault("DNNL_MAX_CPU_ISA", "AVX2")
 os.environ.setdefault("ONEDNN_MAX_CPU_ISA", "AVX2")
+
+# Der Modell-Zwischenspeicher von huggingface_hub arbeitet mit Symlinks, die
+# Windows nur im Entwicklermodus oder als Administrator erlaubt. Ohne beides
+# funktioniert er trotzdem (er kopiert dann statt zu verlinken), warnt aber bei
+# jedem Start mehrzeilig auf der Konsole. Das Verhalten ist fuer uns egal - es
+# wird genau ein Modell geladen, es gibt nichts zu de-duplizieren.
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
+# Legt der Windows-Installer einen model-cache-Ordner im Projektordner an, wird
+# das Modell (~500MB) dorthin geladen statt nach %USERPROFILE%\.cache\huggingface.
+# Damit raeumt die Deinstallation es restlos mit weg, statt ein halbes Gigabyte
+# an einer Stelle zurueckzulassen, die niemand vermutet. Unter Linux gibt es den
+# Ordner nicht, dort bleibt es beim Standard-Zwischenspeicher.
+_MODEL_CACHE = Path(__file__).resolve().parent / "model-cache"
+if _MODEL_CACHE.is_dir():
+    os.environ.setdefault("HF_HOME", str(_MODEL_CACHE))
 
 from faster_whisper import WhisperModel
 
