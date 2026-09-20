@@ -1,0 +1,67 @@
+name: Windows-Installer bauen
+
+# Baut installscript/windows/setup.iss zu DiktiertoolSetup.exe. windows-latest
+# bringt Inno Setup bereits mit (siehe actions/runner-images) - ein
+# Choco-Fallback greift nur, falls sich das mal aendert.
+#
+# - Push eines v*-Tags: baut UND haengt die .exe als Asset an das zugehoerige
+#   GitHub Release an (existiert das Release schon, wird nur das Asset
+#   ergaenzt).
+# - workflow_dispatch: baut nur, Ergebnis als Artifact zum Herunterladen -
+#   praktisch fuer einen Testlauf auf einer VM, ohne gleich ein Release zu
+#   beruehren.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inno Setup compilieren
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+
+          # Es gibt zwei Versionsnummern, und sie muessen uebereinstimmen: der
+          # Tag bestimmt, was der Installer in "Apps & Features" eintraegt,
+          # config.py bestimmt, was die App selbst anzeigt und womit
+          # update_check.py das neueste Release vergleicht. Liefen sie
+          # auseinander, meldete sich eine frisch installierte neueste Version
+          # mit der alten Nummer - und zeigte dauerhaft ein "Update
+          # verfuegbar", das sich nie erledigen liesse.
+          $configVersion = (Select-String -Path config.py -Pattern '^VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+
+          if ($version -notmatch '^\d+(\.\d+)*$') {
+            # Kein Versions-Tag (workflow_dispatch) - dann gilt config.py.
+            $version = $configVersion
+          } elseif ($version -ne $configVersion) {
+            throw "Tag v$version und config.py ($configVersion) stimmen nicht ueberein. Vor dem Taggen VERSION in config.py setzen (und die Vorgabe in installscript/windows/setup.iss gleich mit)."
+          }
+          Write-Host "Installer-Version: $version (config.py: $configVersion)"
+
+          & $iscc "/DMyAppVersion=$version" "installscript\windows\setup.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC fehlgeschlagen." }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DiktiertoolSetup
+          path: installscript/windows/dist/DiktiertoolSetup.exe
+
+      - name: An GitHub Release anhaengen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installscript/windows/dist/DiktiertoolSetup.exe

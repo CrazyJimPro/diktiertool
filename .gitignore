@@ -2,3 +2,10 @@ venv/
 diktat.txt
 __pycache__/
 *.pyc
+
+# Windows-Installation: portables Python, Modell-Zwischenspeicher (~500MB),
+# Einrichtungsprotokoll und die vom Inno-Setup-Compiler gebaute .exe
+python-runtime/
+model-cache/
+install.log
+installscript/windows/dist/

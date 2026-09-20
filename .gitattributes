@@ -1,0 +1,11 @@
+# Die Shell-Skripte muessen unter Linux mit LF ankommen, auch wenn jemand das
+# Repo unter Windows mit core.autocrlf=true auscheckt - mit CRLF bricht schon
+# die Shebang-Zeile ("bad interpreter: /usr/bin/env bash^M").
+*.sh text eol=lf
+
+# Umgekehrt fuer die Windows-Seite: PowerShell und Inno Setup kommen zwar auch
+# mit LF zurecht, aber wer eine dieser Dateien in einem einfachen Editor
+# (Notepad, ISE) oeffnet, soll keine zu einer einzigen Zeile verschmolzene
+# Datei sehen.
+*.ps1 text eol=crlf
+*.iss text eol=crlf
