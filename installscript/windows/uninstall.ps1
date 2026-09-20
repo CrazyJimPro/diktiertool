@@ -14,11 +14,18 @@ sich nicht wiederherstellen laesst.
 
 [CmdletBinding()]
 param(
-    [string]$InstallDir = (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent)
+    [string]$InstallDir
 )
 
 # Ein Fehler beim Aufraeumen darf die Deinstallation nicht anhalten.
 $ErrorActionPreference = "Continue"
+
+# Siehe start.ps1: als Standardwert im param()-Block oben waere $PSScriptRoot
+# beim Aufruf ueber "powershell.exe -File ..." noch leer - und genau so ruft
+# setup.iss dieses Skript bei der Deinstallation auf.
+if (-not $InstallDir) {
+    $InstallDir = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+}
 
 # Laeuft das Tool gerade, haelt es Dateien im Installationsordner offen und
 # Inno koennte ihn nicht vollstaendig loeschen. Getroffen werden nur
