@@ -77,8 +77,13 @@ try {
         throw "install.ps1 fehlt in $InstallDir - der Download ist unvollstaendig."
     }
 
-    $arguments = @("-InstallDir", $InstallDir, "-NoTranscript")
-    if ($SkipShortcuts) { $arguments += "-SkipShortcuts" }
+    # Hashtable, kein Array: ein gesplattetes Array uebergibt seine Elemente
+    # POSITIONAL, der Name landet also als Wert im ersten Parameter
+    # (-InstallDir bekaeme woertlich "-InstallDir") und ein Schalter wie
+    # -NoTranscript bleibt als ueberzaehliges Argument uebrig, woraufhin
+    # PowerShell mit "Es wurde kein Positionsparameter gefunden" abbricht.
+    $arguments = @{ InstallDir = $InstallDir; NoTranscript = $true }
+    if ($SkipShortcuts) { $arguments["SkipShortcuts"] = $true }
     & $installScript @arguments
 } finally {
     try { Stop-Transcript -ErrorAction SilentlyContinue | Out-Null } catch {}
