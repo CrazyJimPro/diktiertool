@@ -1,31 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="CrazyJimPro/diktiertool"
+REPO_URL="https://github.com/CrazyJimPro/diktiertool.git"
 TARGET_DIR="${DIKTIERTOOL_DIR:-$HOME/diktiertool}"
 
-if ! command -v gh >/dev/null 2>&1; then
-    echo "GitHub CLI (gh) fehlt, installiere sie..."
-    (type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \
-        && sudo mkdir -p -m 755 /etc/apt/keyrings \
-        && wget -nv -O- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-        && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-        && sudo mkdir -p -m 755 /etc/apt/sources.list.d \
-        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-        && sudo apt update \
-        && sudo apt install gh -y
-fi
-
-if ! gh auth status >/dev/null 2>&1; then
-    echo "Nicht bei GitHub angemeldet, starte Login..."
-    gh auth login --web
+# Frueher lief das Klonen ueber die GitHub CLI samt "gh auth login --web",
+# weil das Repo privat war. Seit es oeffentlich ist, reicht ein normales
+# git clone - kein Konto, keine Anmeldung, kein einmaliger Code im Browser.
+if ! command -v git >/dev/null 2>&1; then
+    echo "git fehlt, installiere es..."
+    sudo apt update && sudo apt install -y git
 fi
 
 if [ -d "$TARGET_DIR" ]; then
     echo "$TARGET_DIR existiert bereits, ueberspringe Klonen."
 else
-    echo "Klone $REPO nach $TARGET_DIR..."
-    gh repo clone "$REPO" "$TARGET_DIR"
+    echo "Klone $REPO_URL nach $TARGET_DIR..."
+    git clone "$REPO_URL" "$TARGET_DIR"
 fi
 
 cd "$TARGET_DIR"
