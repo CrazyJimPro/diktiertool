@@ -19,7 +19,7 @@
 ; gepushten v*-Tags mit "iscc /DMyAppVersion=1.0.1 ..." herein und prueft
 ; vorher, dass sie zu config.py passt.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.0.1"
 #endif
 #define MyAppPublisher "Diktiertool"
 #define MyAppURL "https://github.com/CrazyJimPro/diktiertool"
@@ -68,14 +68,10 @@ Name: "{group}\Diktiertool starten (mit Meldungen)"; Filename: "powershell.exe";
     Parameters: "-NoProfile -NoExit -ExecutionPolicy Bypass -File ""{app}\installscript\windows\start.ps1"""
 Name: "{group}\Deinstallieren"; Filename: "{uninstallexe}"
 
-; "64bit" schaltet fuer diesen Aufruf die WOW64-Dateisystem-Umleitung ab, damit
-; wirklich die 64-Bit-PowerShell startet (siehe Kommentar bei
-; ArchitecturesInstallIn64BitMode oben).
-[Run]
-Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installscript\windows\bootstrap.ps1"" -InstallDir ""{app}"""; \
-    StatusMsg: "Diktiertool wird eingerichtet (Python, Abhaengigkeiten) - das kann einige Minuten dauern ..."; \
-    Flags: runascurrentuser waituntilterminated 64bit
+; Die Einrichtung (bootstrap.ps1) laeuft nicht als [Run]-Eintrag, sondern per
+; Exec() in CurStepChanged weiter unten: ein [Run]-Eintrag verwirft den
+; Exit-Code, der Assistent meldete dann auch nach einem gescheiterten pip
+; "fertig".
 
 ; Ohne das kennt Inno Setup nur die fuenf .ps1-Dateien aus [Files] - der
 ; ZIP-Download, pip und der Modell-Zwischenspeicher legen tausende weitere
@@ -134,9 +130,41 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+  Started: Boolean;
 begin
   if CurStep = ssPostInstall then
   begin
+    WizardForm.StatusLabel.Caption :=
+      'Diktiertool wird eingerichtet (Python, Abhaengigkeiten) - das kann einige Minuten dauern ...';
+
+    // {sysnative} statt {sys}: Setup.exe ist ein 32-Bit-Prozess (siehe Kommentar
+    // bei ArchitecturesInstallIn64BitMode), das portable Python braucht aber die
+    // 64-Bit-PowerShell.
+    Started := Exec(ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -ExecutionPolicy Bypass -File "' +
+        ExpandConstant('{app}\installscript\windows\bootstrap.ps1') +
+        '" -InstallDir "' + ExpandConstant('{app}') + '"',
+      '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode);
+
+    if (not Started) or (ResultCode <> 0) then
+    begin
+      Log('bootstrap.ps1 fehlgeschlagen: gestartet=' + IntToStr(Ord(Started)) +
+          ', Code=' + IntToStr(ResultCode));
+      MsgBox(
+        'Die Einrichtung des Diktiertools ist fehlgeschlagen.' + #13#10 + #13#10 +
+        'Das Diktiertool ist NICHT einsatzbereit - es wurde keine Desktop-Verknuepfung ' +
+        'angelegt, und der Eintrag im Startmenue startet nichts.' + #13#10 + #13#10 +
+        'Was genau schiefging, steht in der Protokolldatei:' + #13#10 +
+        ExpandConstant('{app}\install.log') + #13#10 + #13#10 +
+        'Haeufige Ursachen sind eine fehlende Internetverbindung oder ein ' +
+        'blockierender Virenscanner. Nach dem Beheben die Installation einfach ' +
+        'noch einmal starten.',
+        mbError, MB_OK);
+      Exit;
+    end;
+
     MsgBox(
       'Das Diktiertool ist eingerichtet.' + #13#10 + #13#10 +
       'Starten ueber das Symbol auf dem Desktop oder den Eintrag im Startmenue.' + #13#10 + #13#10 +

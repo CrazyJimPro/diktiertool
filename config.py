@@ -56,7 +56,7 @@ OUTPUT_FILE = _default_output_file()
 # Bei jedem Release manuell mit dem neuen Git-Tag synchron halten (siehe
 # update_check.py und installscript/windows/setup.iss - der CI-Workflow
 # vergleicht Tag und diese Nummer und bricht bei Abweichung ab)
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # Whisper
 MODEL_SIZE = "small"
