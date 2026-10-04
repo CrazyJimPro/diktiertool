@@ -195,8 +195,15 @@ try {
     }
 
     Write-Host "Installiere Abhaengigkeiten (faster-whisper, sounddevice, pywebview) ..."
-    & $python -m pip install --upgrade pip --no-warn-script-location
-    & $python -m pip install --no-warn-script-location -r (Join-Path $InstallDir "requirements.txt")
+    & $python -m pip install --upgrade pip setuptools wheel --no-warn-script-location
+    if ($LASTEXITCODE -ne 0) { throw "pip, setuptools und wheel liessen sich nicht installieren (Code $LASTEXITCODE)." }
+    # --no-build-isolation: pywebview zieht proxy_tools nach, das es nur als
+    # Quellpaket gibt und das vor der Installation gebaut werden muss. pip baut
+    # dafuer normalerweise in einer isolierten Umgebung, die es ueber PYTHONPATH
+    # einblendet - die ._pth-Datei des embeddable package ignoriert PYTHONPATH
+    # aber, und der Bau scheitert mit "Cannot import 'setuptools.build_meta'".
+    # Das setuptools oben im Laufzeitordner wird deshalb direkt verwendet.
+    & $python -m pip install --no-warn-script-location --no-build-isolation -r (Join-Path $InstallDir "requirements.txt")
     if ($LASTEXITCODE -ne 0) { throw "Die Installation der Abhaengigkeiten ist fehlgeschlagen (Code $LASTEXITCODE)." }
 
     # Siehe transcriber.py: existiert dieser Ordner, landet das
