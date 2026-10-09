@@ -176,6 +176,49 @@ bleibt ausschließlich auf diesem Rechner.
 
 # Für beide Plattformen
 
+## Knöpfe unter dem Text
+
+- **Kopieren:** kopiert den gesamten Text im Fenster in die Zwischenablage, mit allen
+  Absätzen. Danach z. B. in eine Mail oder ein Word-Dokument einfügen (Strg+V).
+- **Leeren:** leert nur die Anzeige im Fenster. In der Datei bleibt alles stehen.
+- **Ordner öffnen:** öffnet den Ordner, in dem `diktat.txt` liegt (unter Windows
+  `Dokumente\Diktiertool`, unter Linux den Projektordner).
+
+## Absätze per Sprache
+
+Beim Diktieren einfach mitsprechen:
+
+| Gesagt | Ergebnis |
+|---|---|
+| „neuer Absatz“ | Leerzeile, danach geht es in einem neuen Absatz weiter |
+| „neue Zeile“ | Zeilenumbruch |
+
+Satzzeichen per Sprache („Komma“, „Punkt“, „Fragezeichen“, „Ausrufezeichen“,
+„Doppelpunkt“) sind vorbereitet, aber noch ausgeschaltet: Die Erkennung setzt Satzzeichen
+ohnehin selbst, und „der Punkt ist …“ würde sonst zu „der. Ist …“. Einschalten lässt sich das
+ab der nächsten Version in den Einstellungen.
+
+## Zuletzt benutztes Mikrofon
+
+Das Tool merkt sich das Mikrofon, mit dem zuletzt eine Aufnahme gestartet wurde, und wählt
+es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie bisher
+„Standard-Mikrofon“ in der Liste.
+
+Gespeichert wird das in einer kleinen Einstellungsdatei:
+
+- Windows: `%APPDATA%\Diktiertool\settings.json`
+- Linux: `~/.config/diktiertool/settings.json`
+
+## Wenn etwas nicht klappt
+
+- **Das falsche Mikrofon ist vorgewählt:** einfach in der Liste umstellen, beim nächsten
+  „Start“ merkt sich das Tool die neue Wahl.
+- **Das Tool startet nicht mehr, nachdem an der Einstellungsdatei herumgebastelt wurde:**
+  Das sollte nicht passieren (eine kaputte Datei wird ignoriert). Falls doch, die Datei
+  `settings.json` (Pfad siehe oben) löschen und neu starten.
+- **„Kopieren“ tut scheinbar nichts:** Der Knopf ist gesperrt, solange im Fenster kein Text
+  steht. Nach dem Klick zeigt er kurz „Kopiert ✓“.
+
 ## Bekannte Eigenheiten
 
 - Text erscheint satzweise mit ein paar Sekunden Verzögerung (Sprechpause + Rechenzeit),
@@ -183,8 +226,12 @@ bleibt ausschließlich auf diesem Rechner.
 - Bricht die Mikrofon-Verbindung mitten in der Aufnahme ab (z.B. Bluetooth getrennt), zeigt
   das Tool eine Fehlermeldung und stoppt sauber. Es verbindet sich nicht automatisch neu –
   Gerät neu auswählen und "Start" erneut drücken.
-- Bei reinem Hintergrundgeräusch (ohne echte Sprache) kann die Erkennung gelegentlich kurze,
-  erfundene Textschnipsel einfügen (bekanntes Whisper-Verhalten bei Stille).
+- Bei reinem Hintergrundgeräusch (ohne echte Sprache) erfindet Whisper gelegentlich kurze
+  Textschnipsel, meist Abspann-Sätze aus Fernsehuntertiteln („Untertitel im Auftrag des
+  ZDF“, „Vielen Dank fürs Zuschauen“). Die bekannten Sätze filtert das Tool heraus, ebenso
+  Wiederholungsschleifen („und dann und dann und dann …“). Ganz verhindern lässt sich das
+  nicht. Taucht ein neuer Phantomsatz öfter auf, kann er in `text_postprocess.py` in die
+  Liste `_PHANTOM_PATTERNS` aufgenommen werden.
 
 ## Modellgröße ändern
 

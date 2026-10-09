@@ -19,7 +19,7 @@
 ; gepushten v*-Tags mit "iscc /DMyAppVersion=1.0.1 ..." herein und prueft
 ; vorher, dass sie zu config.py passt.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.1"
+  #define MyAppVersion "1.1.0"
 #endif
 #define MyAppPublisher "Diktiertool"
 #define MyAppURL "https://github.com/CrazyJimPro/diktiertool"

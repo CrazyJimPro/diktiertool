@@ -8,13 +8,58 @@ const refreshButton = document.getElementById("refreshButton");
 const versionLabel = document.getElementById("versionLabel");
 const updateBadge = document.getElementById("updateBadge");
 const themeToggle = document.getElementById("themeToggle");
+const copyButton = document.getElementById("copyButton");
+const clearButton = document.getElementById("clearButton");
+const folderButton = document.getElementById("folderButton");
+
+// Genau die Zeilen, wie sie auch in die Datei geschrieben werden - Kopieren
+// soll nicht von der Darstellung im DOM abhaengen.
+let transcript = [];
 
 window.addEventListener("pywebviewready", () => {
   startButton.addEventListener("click", () => pywebview.api.toggle_recording(deviceSelect.value));
   refreshButton.addEventListener("click", () => pywebview.api.refresh_devices(deviceSelect.value));
   versionLabel.addEventListener("click", () => pywebview.api.open_url(versionLabel.dataset.url));
   updateBadge.addEventListener("click", () => pywebview.api.open_url(updateBadge.dataset.url));
+  folderButton.addEventListener("click", () => pywebview.api.open_output_folder());
 });
+
+copyButton.addEventListener("click", async () => {
+  const text = transcript.join("\n");
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // WebKit2GTK erlaubt die Clipboard-API nicht in jedem Kontext - der
+    // alte Weg ueber ein markiertes Textfeld klappt dort zuverlaessig.
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+  flashButton(copyButton, "Kopiert ✓");
+});
+
+clearButton.addEventListener("click", () => {
+  transcript = [];
+  textOutput.innerHTML = "";
+  textOutput.appendChild(placeholder);
+  updateTextButtons();
+});
+
+function flashButton(button, label) {
+  const original = button.dataset.label || button.textContent;
+  button.dataset.label = original;
+  button.textContent = label;
+  clearTimeout(button._flashTimer);
+  button._flashTimer = setTimeout(() => { button.textContent = original; }, 1500);
+}
+
+function updateTextButtons() {
+  copyButton.disabled = transcript.length === 0;
+  clearButton.disabled = transcript.length === 0;
+}
 
 // Unabhaengig von pywebviewready registriert (kein Python-Aufruf noetig) -
 // das Umschalten selbst ist reines CSS/localStorage, die Klasse wurde vom
@@ -63,11 +108,13 @@ function setLevel(fraction) {
 }
 
 function appendText(text) {
-  placeholder?.remove();
+  placeholder.remove();
+  transcript.push(text);
   const p = document.createElement("p");
   p.textContent = text;
   textOutput.appendChild(p);
   textOutput.scrollTop = textOutput.scrollHeight;
+  updateTextButtons();
 }
 
 function setRecordingState(isRecording) {

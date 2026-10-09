@@ -3,6 +3,8 @@ import math
 import os
 import pathlib
 import queue
+import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -15,6 +17,7 @@ from update_check import REPO, get_latest_version, is_newer
 from audio_capture import AudioCapture, list_input_devices
 from transcriber import Transcriber
 from file_writer import FileWriter
+from settings import Settings
 
 POLL_S = 0.1
 WATCHDOG_TIMEOUT_S = 3.0
@@ -66,6 +69,9 @@ class Api:
     def open_url(self, url):
         webbrowser.open(url)
 
+    def open_output_folder(self):
+        self._app.open_output_folder()
+
 
 class App:
     def __init__(self):
@@ -74,12 +80,14 @@ class App:
         self.error_q: queue.Queue = queue.Queue(maxsize=20)
         self.stop_event = threading.Event()
 
+        self.settings = Settings()
         self.writer = FileWriter()
         self.capture = AudioCapture(self.audio_q, self.error_q, device=None)
-        self.transcriber = Transcriber(self.audio_q, self.result_q, self.stop_event)
+        self.transcriber = Transcriber(self.audio_q, self.result_q, self.stop_event, self.settings)
 
         self.recording = False
         self.device_map = {}
+        self.device_names = {}
         self.window = None
 
     def run(self):
@@ -119,10 +127,21 @@ class App:
 
     def refresh_devices(self, current_label=None):
         self.device_map = {STANDARD_LABEL: None}
+        self.device_names = {STANDARD_LABEL: None}
         for idx, name in list_input_devices():
-            self.device_map[f"[{idx}] {name}"] = idx
+            label = f"[{idx}] {name}"
+            self.device_map[label] = idx
+            self.device_names[label] = name
         labels = list(self.device_map.keys())
-        selected = current_label if current_label in labels else labels[0]
+        selected = current_label
+        if selected not in labels:
+            # Beim Start (oder wenn das bisher gewaehlte Geraet verschwunden
+            # ist) das zuletzt benutzte Mikrofon ueber seinen Namen suchen.
+            saved = self.settings.get("device_name")
+            selected = next(
+                (label for label, name in self.device_names.items() if saved and name == saved),
+                labels[0],
+            )
         self._js(f"setDeviceList({json.dumps(labels)}, {json.dumps(selected)})")
 
     def _set_status(self, text: str):
@@ -145,6 +164,7 @@ class App:
             self._set_status(f"Fehler: Gerät nicht verfügbar ({exc})")
             return
 
+        self.settings.update(device_name=self.device_names.get(device_label))
         self.writer.start_session()
         self.recording = True
         self._js("setRecordingState(true)")
@@ -155,6 +175,17 @@ class App:
         self.recording = False
         self._js("setRecordingState(false)")
         self._set_status("Bereit")
+
+    def open_output_folder(self):
+        folder = self.writer.path.parent
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            if sys.platform == "win32":
+                os.startfile(folder)
+            else:
+                subprocess.Popen(["xdg-open", str(folder)])
+        except OSError as exc:
+            self._set_status(f"Ordner lässt sich nicht öffnen: {exc}")
 
     def _handle_error(self, message: str):
         if self.recording:

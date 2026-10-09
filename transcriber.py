@@ -29,6 +29,7 @@ if _MODEL_CACHE.is_dir():
 from faster_whisper import WhisperModel
 
 from config import MODEL_SIZE, LANGUAGE, COMPUTE_TYPE, CPU_THREADS
+from text_postprocess import apply_voice_commands, filter_segments
 
 
 class Transcriber(threading.Thread):
@@ -37,11 +38,13 @@ class Transcriber(threading.Thread):
     echtzeitkritischen Audio-Callback-Thread, damit die Aufnahme nie auf die
     (deutlich langsamere) Spracherkennung warten muss."""
 
-    def __init__(self, audio_q: queue.Queue, result_q: queue.Queue, stop_event: threading.Event):
+    def __init__(self, audio_q: queue.Queue, result_q: queue.Queue, stop_event: threading.Event,
+                 settings):
         super().__init__(daemon=True)
         self.audio_q = audio_q
         self.result_q = result_q
         self.stop_event = stop_event
+        self.settings = settings
         self.model = None
 
     def run(self):
@@ -68,6 +71,9 @@ class Transcriber(threading.Thread):
                 condition_on_previous_text=False,
                 vad_filter=False,
             )
-            text = "".join(segment.text for segment in segments).strip()
-            if text:
+            text = apply_voice_commands(
+                filter_segments(segments),
+                punctuation=self.settings.get("punctuation_commands"),
+            )
+            if text is not None:
                 self.result_q.put({"type": "text", "text": text})

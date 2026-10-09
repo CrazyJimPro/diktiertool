@@ -295,6 +295,18 @@ body.glass .device-select {
 }
 .btn-secondary:hover { background: var(--border); transform: translateY(-1px); }
 .btn-secondary:disabled, .device-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-small {
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.text-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
 
 .btn-primary {
   display: block;
@@ -369,7 +381,10 @@ body.glass .device-select {
   font-size: 14px;
   line-height: 1.6;
 }
-.text-output p { margin: 0 0 8px; }
+/* pre-wrap: "Neuer Absatz" mitten in einem Haeppchen kommt als \n\n an,
+   ein Haeppchen, das nur aus dem Befehl bestand, als leerer Absatz. */
+.text-output p { margin: 0 0 8px; white-space: pre-wrap; }
+.text-output p:empty { min-height: 1.6em; }
 .text-output .placeholder {
   color: var(--text-secondary);
   font-style: italic;
