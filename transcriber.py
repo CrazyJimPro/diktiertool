@@ -105,12 +105,30 @@ class Transcriber(threading.Thread):
     def cancel_files(self):
         self.cancel_event.set()
 
-    def _options(self) -> dict:
+    def _transcribe_array(self, audio):
+        """Die einzige Stelle, die das Erkennungsmodell aufruft - live wie fuer
+        Audiodateien. Liefert (Segmente, Dauer in s, eigene Woerter als
+        Prompt-Text oder None); jedes Segment hat mindestens .start, .end und
+        .text. Eine zweite Engine (Fahrplan M6: Parakeet) haengt sich hier ein,
+        der Rest des Transcribers bleibt dann unveraendert."""
         language = self.settings.get("language")
-        return {
-            "language": None if language == "auto" else language,
-            "hotwords": ", ".join(self.settings.get("vocabulary")) or None,
-        }
+        hotwords = ", ".join(self.settings.get("vocabulary")) or None
+        # vad_filter=True (onnxruntime-basiert) bewusst deaktiviert: das startet
+        # einen zweiten, unabhaengigen nativen Thread-Pool neben dem von
+        # ctranslate2 und hat reproduzierbar zu Abstuerzen gefuehrt (Race
+        # Condition beim Freigeben von JIT-Code, siehe Core-Dump-Analyse).
+        # Live uebernimmt die eigene Lautstaerke-basierte Pausenerkennung in
+        # audio_capture.py die Sprache/Stille-Trennung; bei Audiodateien
+        # erfindet Whisper in langen Pausen dafuer gelegentlich Saetze - die
+        # bekannten faengt filter_segments ab.
+        segments, info = self.model.transcribe(
+            audio,
+            language=None if language == "auto" else language,
+            hotwords=hotwords,
+            condition_on_previous_text=False,
+            vad_filter=False,
+        )
+        return segments, info.duration, hotwords
 
     def run(self):
         self._load_with_fallback(previous=None)
@@ -140,21 +158,9 @@ class Transcriber(threading.Thread):
             if self.model is None:
                 continue  # kein Modell ladbar - Start ist dann ohnehin gesperrt
 
-            # vad_filter=True (onnxruntime-basiert) bewusst deaktiviert: das startet
-            # einen zweiten, unabhaengigen nativen Thread-Pool neben dem von
-            # ctranslate2 und hat reproduzierbar zu Abstuerzen gefuehrt (Race
-            # Condition beim Freigeben von JIT-Code, siehe Core-Dump-Analyse).
-            # Die eigene Lautstaerke-basierte Pausenerkennung in audio_capture.py
-            # uebernimmt die Sprache/Stille-Trennung bereits vorher.
-            options = self._options()
-            segments, _ = self.model.transcribe(
-                chunk,
-                condition_on_previous_text=False,
-                vad_filter=False,
-                **options,
-            )
+            segments, _, hotwords = self._transcribe_array(chunk)
             text = apply_voice_commands(
-                filter_segments(segments, hotwords=options["hotwords"]),
+                filter_segments(segments, hotwords=hotwords),
                 punctuation=self.settings.get("punctuation_commands"),
             )
             if text is not None:
@@ -186,15 +192,9 @@ class Transcriber(threading.Thread):
             return
 
         self.result_q.put({"type": "file_text", "text": f"— {path.name} —"})
-        options = self._options()
         punctuation = self.settings.get("punctuation_commands")
-        # Siehe run(): auch hier kein vad_filter. Bei laengeren Pausen in
-        # Aufnahmen erfindet Whisper dann gelegentlich Saetze - die bekannten
-        # faengt filter_segments ab.
-        segments, transcription_info = self.model.transcribe(
-            audio, condition_on_previous_text=False, vad_filter=False, **options,
-        )
-        duration = transcription_info.duration or 1.0
+        segments, duration, hotwords = self._transcribe_array(audio)
+        duration = duration or 1.0
         paragraphs = Paragraphs(lambda text: self._emit_paragraph(out_path, text))
         last_percent = 0
         try:
@@ -203,7 +203,7 @@ class Transcriber(threading.Thread):
                     done["cancelled"] = True
                     break
                 text = apply_voice_commands(
-                    filter_segments([segment], hotwords=options["hotwords"]),
+                    filter_segments([segment], hotwords=hotwords),
                     punctuation=punctuation,
                 )
                 if text is not None:
