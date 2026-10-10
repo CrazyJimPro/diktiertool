@@ -103,8 +103,16 @@ class App:
         self.minimized = False
 
     def run(self, guard=None):
+        # ?v=<Version>: pywebviews eingebauter Server will Cache-Control:
+        # no-cache setzen, bottle.static_file ueberschreibt den Header aber
+        # wieder. Ohne ihn haelt WebView2 die zuletzt geladene Seite noch
+        # stundenlang fuer frisch - nach einem Update erschien so die alte
+        # Oberflaeche (v1.2.1 ohne Zahnrad). Mit der Version in der Adresse ist
+        # jede neue Version fuer den Cache eine neue Seite; index.html reicht
+        # den Parameter an style.css und app.js weiter.
         self.window = webview.create_window(
-            "Diktiertool", url=str(WEB_DIR / "index.html"), width=680, height=780,
+            "Diktiertool", url=f"{WEB_DIR / 'index.html'}?v={config.VERSION}",
+            width=680, height=780,
             js_api=Api(self),
         )
         self.window.events.loaded += self._on_page_loaded

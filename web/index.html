@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Diktiertool</title>
-<link rel="stylesheet" href="style.css">
+<script>
+  // Versionsparameter (?v=1.2.2, siehe gui.py) an Stylesheet und Skript
+  // weiterreichen - sonst kaeme nach einem Update zwar die neue Seite, aber
+  // das alte style.css/app.js aus dem Cache von WebView2.
+  document.write('<link rel="stylesheet" href="style.css' + location.search + '">');
+</script>
 </head>
 <body>
   <script>
@@ -122,6 +127,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script>document.write('<script src="app.js' + location.search + '"><\/script>');</script>
 </body>
 </html>
