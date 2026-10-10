@@ -5,3 +5,7 @@ av>=11,<20
 sounddevice>=0.5.0,<0.6
 numpy>=1.26,<3.0
 pywebview>=6.0,<7.0
+# Globale Taste + Tippen am Cursor (keyboard_control.py). Nur Windows ueber
+# diese Datei: unter Linux zieht pynput evdev nach, das kompiliert werden
+# muesste - setup.sh installiert es dort ohne diese Abhaengigkeit.
+pynput>=1.7,<2; sys_platform == "win32"

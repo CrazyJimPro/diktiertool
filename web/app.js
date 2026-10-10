@@ -26,6 +26,10 @@ const vocabulary = document.getElementById("vocabulary");
 const settingsDone = document.getElementById("settingsDone");
 const fileButton = document.getElementById("fileButton");
 const keepFailedAudio = document.getElementById("keepFailedAudio");
+const hotkeySelect = document.getElementById("hotkeySelect");
+const hotkeyModeSelect = document.getElementById("hotkeyModeSelect");
+const typeIntoWindow = document.getElementById("typeIntoWindow");
+const beepCheckbox = document.getElementById("beepCheckbox");
 const logFolderButton = document.getElementById("logFolderButton");
 const card = document.querySelector(".card");
 
@@ -58,6 +62,16 @@ window.addEventListener("pywebviewready", () => {
   keepFailedAudio.addEventListener("change",
     () => pywebview.api.update_setting("keep_failed_audio", keepFailedAudio.checked));
   logFolderButton.addEventListener("click", () => pywebview.api.open_log_folder());
+  hotkeySelect.addEventListener("change", () => pywebview.api.update_setting("hotkey", hotkeySelect.value));
+  hotkeyModeSelect.addEventListener("change",
+    () => pywebview.api.update_setting("hotkey_mode", hotkeyModeSelect.value));
+  typeIntoWindow.addEventListener("change",
+    () => pywebview.api.update_setting("type_into_window", typeIntoWindow.checked));
+  beepCheckbox.addEventListener("change", () => pywebview.api.update_setting("beep", beepCheckbox.checked));
+  // Ausserhalb von Windows weiss Python sonst nicht, ob das eigene Fenster
+  // den Fokus hat (dann wird nicht zusaetzlich getippt)
+  window.addEventListener("focus", () => pywebview.api.set_window_focus(true));
+  window.addEventListener("blur", () => pywebview.api.set_window_focus(false));
   resetDirButton.addEventListener("click", () => pywebview.api.reset_output_dir());
 });
 
@@ -246,6 +260,11 @@ function setSettings(values) {
   filePerSession.checked = values.file_per_session;
   punctuationCommands.checked = values.punctuation_commands;
   keepFailedAudio.checked = values.keep_failed_audio;
+  hotkeySelect.value = values.hotkey;
+  hotkeyModeSelect.value = values.hotkey_mode;
+  hotkeyModeSelect.disabled = values.hotkey === "aus";
+  typeIntoWindow.checked = values.type_into_window;
+  beepCheckbox.checked = values.beep;
   // Nicht ueberschreiben, waehrend jemand darin tippt
   if (document.activeElement !== vocabulary) vocabulary.value = values.vocabulary.join("\n");
   outputDir.textContent = values.output_dir_display;

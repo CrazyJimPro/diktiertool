@@ -75,6 +75,7 @@
       <div class="tabs" role="tablist">
         <button class="tab active" type="button" role="tab" data-tab="erkennung">Erkennung</button>
         <button class="tab" type="button" role="tab" data-tab="ausgabe">Ausgabe</button>
+        <button class="tab" type="button" role="tab" data-tab="tastatur">Tastatur</button>
         <button class="tab" type="button" role="tab" data-tab="diagnose">Diagnose</button>
       </div>
 
@@ -132,6 +133,50 @@
           <span>
             Für jede Aufnahme eine eigene Datei
             <span class="field-hint">z. B. diktat_2026-10-10_14-30.txt statt alles nacheinander in diktat.txt</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="tab-panel" data-panel="tastatur" hidden>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Taste zum Diktieren</span>
+            <select class="device-select" id="hotkeySelect">
+              <option value="aus">Aus</option>
+              <option value="F8">F8</option>
+              <option value="F9">F9</option>
+              <option value="F10">F10</option>
+              <option value="F12">F12</option>
+              <option value="Pause">Pause</option>
+              <option value="Rollen">Rollen (Scroll Lock)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Bedienung</span>
+            <select class="device-select" id="hotkeyModeSelect">
+              <option value="toggle">Drücken: Start, nochmal: Stopp</option>
+              <option value="hold">Gedrückt halten zum Sprechen</option>
+            </select>
+          </label>
+        </div>
+        <span class="field-hint">Funktioniert auch, wenn ein anderes Programm im Vordergrund ist. Die Taste
+          wird dabei abgefangen und kommt bei keinem anderen Programm mehr an.</span>
+
+        <label class="check">
+          <input type="checkbox" id="typeIntoWindow">
+          <span>
+            Text dort eintippen, wo der Cursor steht
+            <span class="field-hint">Erkannter Text erscheint direkt in Word, Browser, Mail … – zusätzlich
+              zum Fenster und zur Datei. „Neuer Absatz“ wird zu Enter: Vorsicht in Chats, dort schickt
+              Enter die Nachricht ab.</span>
+          </span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="beepCheckbox">
+          <span>
+            Signalton bei Start und Stopp per Taste
+            <span class="field-hint">Hilfreich, wenn das Fenster verdeckt ist.</span>
           </span>
         </label>
       </div>

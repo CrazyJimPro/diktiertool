@@ -41,7 +41,16 @@ DEFAULTS = {
     # Haeppchen ohne erkannten Text als WAV in den Log-Ordner (diagnostics.py).
     # Vorgabe aus: es sind Tonaufnahmen, die sollen nur auf Wunsch liegen bleiben.
     "keep_failed_audio": False,
+    # Globale Taste (keyboard_control.py). Vorgabe aus: eine systemweit
+    # verschluckte Taste soll niemand ungefragt verlieren.
+    "hotkey": "aus",
+    "hotkey_mode": "toggle",       # "toggle": druecken/nochmal druecken, "hold": gedrueckt halten
+    "type_into_window": False,     # erkannten Text am Cursor des aktiven Fensters tippen
+    "beep": True,                  # Signalton bei Start/Stopp per Taste
 }
+
+HOTKEY_CHOICES = ("aus", "F8", "F9", "F10", "F12", "Pause", "Rollen")
+HOTKEY_MODES = ("toggle", "hold")
 
 
 def _is_valid(key, value) -> bool:
@@ -54,7 +63,12 @@ def _is_valid(key, value) -> bool:
         return value in LANGUAGE_CHOICES
     if key in ("device_name", "output_dir"):
         return value is None or (isinstance(value, str) and value != "")
-    if key in ("punctuation_commands", "file_per_session", "keep_failed_audio"):
+    if key == "hotkey":
+        return value in HOTKEY_CHOICES
+    if key == "hotkey_mode":
+        return value in HOTKEY_MODES
+    if key in ("punctuation_commands", "file_per_session", "keep_failed_audio",
+               "type_into_window", "beep"):
         return isinstance(value, bool)
     if key == "vocabulary":
         return isinstance(value, list) and all(isinstance(w, str) for w in value)

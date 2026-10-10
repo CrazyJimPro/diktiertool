@@ -222,12 +222,54 @@ Bei mehreren Dateien werden die restlichen übersprungen.
 Während einer Transkription ist „Start“ gesperrt, während einer Aufnahme der Knopf
 „Audiodatei …“. Beides gleichzeitig geht nicht.
 
+## Diktieren per Taste, direkt ins Programm
+
+Statt im Diktiertool-Fenster auf „Start“ zu klicken, kannst du eine Taste festlegen, die
+in jedem Programm funktioniert. Auf Wunsch tippt das Tool den erkannten Text direkt dort
+ein, wo gerade der Cursor steht: in Word, im Browser, in einer Mail.
+
+**Einrichten:**
+
+1. Zahnrad → Reiter **Tastatur**.
+2. Unter „Taste zum Diktieren“ eine Taste wählen: F8, F9, F10, F12, Pause oder Rollen.
+   Am besten eine, die du sonst nie brauchst, denn sie kommt bei keinem anderen Programm
+   mehr an, solange das Diktiertool läuft.
+3. „Bedienung“ wählen:
+   - **Drücken: Start, nochmal: Stopp**: einmal drücken, sprechen, nochmal drücken.
+   - **Gedrückt halten zum Sprechen**: wie ein Funkgerät, Aufnahme nur solange die Taste
+     unten ist.
+4. Haken bei **„Text dort eintippen, wo der Cursor steht“**, wenn der Text direkt im
+   anderen Programm landen soll.
+5. Die Statuszeile zeigt dann z. B. „Bereit – F9 startet die Aufnahme“.
+
+**Benutzen:**
+
+1. Das Diktiertool läuft im Hintergrund (es darf minimiert sein).
+2. Im Zielprogramm an die Stelle klicken, an die der Text soll.
+3. Taste drücken (bzw. halten). Mit eingeschaltetem Signalton piept es hoch.
+4. Sprechen. Der Text erscheint satzweise am Cursor, außerdem wie gewohnt im Fenster und
+   in der Datei.
+5. Taste nochmal drücken (bzw. loslassen). Es piept tiefer.
+
+Gut zu wissen:
+
+- **„Neuer Absatz“ und „neue Zeile“ werden zu Enter.** In Chats und Messengern schickt
+  Enter die Nachricht sofort ab. Dort also besser keine Absätze diktieren.
+- Während das Tool tippt, nicht selbst tippen, sonst mischen sich die Zeichen.
+- Steht der Cursor im Diktiertool-Fenster selbst, wird nicht zusätzlich getippt.
+- **Programme, die als Administrator laufen** (z. B. manche Installationsprogramme oder
+  eine Admin-Eingabeaufforderung): Dort kommt Windows-bedingt weder die Taste an noch der
+  getippte Text, solange das Diktiertool selbst ohne Adminrechte läuft.
+- **Linux:** Taste und Tippen funktionieren nur in einer X11-Sitzung, nicht unter Wayland.
+  Die Taste wird dort außerdem nicht abgefangen, sondern kommt zusätzlich beim Programm an.
+
 ## Einstellungen
 
 Das Zahnrad oben rechts (neben dem Design-Knopf) öffnet die Einstellungen. Sie sind auf
 Reiter verteilt: **Erkennung** (Modell, Sprache, eigene Wörter, Satzzeichen), **Ausgabe**
-(Ordner, eigene Datei pro Aufnahme) und **Diagnose**. Jede Änderung wird sofort
-gespeichert, „Fertig“ führt zurück zur Aufnahme.
+(Ordner, eigene Datei pro Aufnahme), **Tastatur** (Taste zum Diktieren, Tippen am Cursor,
+siehe oben) und **Diagnose**. Jede Änderung wird sofort gespeichert, „Fertig“ führt
+zurück zur Aufnahme.
 
 ### Spracherkennungsmodell wechseln
 
@@ -326,6 +368,14 @@ es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie
 
 ## Wenn etwas nicht klappt
 
+- **Die Taste tut nichts:** Läuft das Diktiertool? (Die Taste funktioniert nur, solange
+  es geöffnet ist, minimiert reicht.) Lädt das Modell noch, sagt die Statuszeile das. Im
+  Vordergrund ist ein Programm mit Adminrechten? Dann lässt Windows die Taste dort nicht
+  durch, siehe „Diktieren per Taste“.
+- **Eine andere Taste funktioniert plötzlich nicht mehr:** Das ist die im Reiter Tastatur
+  gewählte. Das Diktiertool fängt sie ab. Dort eine andere wählen oder „Aus“.
+- **Der Text wird nicht ins Programm getippt:** Haken „Text dort eintippen, wo der Cursor
+  steht“ gesetzt? Stand der Cursor im Diktiertool selbst? Dort wird bewusst nicht getippt.
 - **Es nimmt auf, aber es erscheint kein Text:** Auf die Statuszeile achten. Nach acht
   Sekunden ohne brauchbaren Ton erscheint dort ein Hinweis:
   - „Kein Ton vom Mikrofon“: Das Mikrofon liefert völlige Stille. Meist ist es

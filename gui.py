@@ -21,6 +21,7 @@ from file_writer import DEFAULT_OUTPUT_DIR, FileWriter
 from settings import Settings, parse_vocabulary
 import diagnostics
 from diagnostics import log
+import keyboard_control
 
 POLL_S = 0.1
 WATCHDOG_TIMEOUT_S = 3.0
@@ -98,6 +99,9 @@ class Api:
     def open_log_folder(self):
         self._app.open_log_folder()
 
+    def set_window_focus(self, focused):
+        self._app.window_focused = bool(focused)
+
 
 class App:
     def __init__(self):
@@ -120,6 +124,11 @@ class App:
         self.file_results = []
         self.recording_status = ""
         self.level_hint = None
+
+        self.hotkey_listener = None
+        self.hotkey_hold_active = False   # Aufnahme laeuft, weil die Taste gehalten wird
+        self.window_focused = True        # von app.js gemeldet (nur ausserhalb Windows benutzt)
+        self.typer = keyboard_control.TextTyper(self._own_window_focused)
 
     def run(self, guard=None):
         log.info("Start Diktiertool %s (Python %s, %s), Modell %s, Sprache %s",
@@ -183,6 +192,7 @@ class App:
         self.refresh_devices()
         self._push_settings()
         self._register_drop()
+        self._apply_hotkey()
         self.transcriber.start()
 
         threading.Thread(target=self._check_for_update, daemon=True).start()
@@ -223,7 +233,8 @@ class App:
         if key == "vocabulary":
             value = parse_vocabulary(value if isinstance(value, str) else "")
         elif key not in ("model_size", "language", "output_dir",
-                         "file_per_session", "punctuation_commands", "keep_failed_audio"):
+                         "file_per_session", "punctuation_commands", "keep_failed_audio",
+                         "hotkey", "hotkey_mode", "type_into_window", "beep"):
             return
         if key == "model_size" and (self.recording or self.file_job_running):
             # Der Dialog sperrt die Auswahl waehrend der Aufnahme ohnehin -
@@ -233,6 +244,8 @@ class App:
         self.settings.update(**{key: value})
         if key == "model_size":
             self.transcriber.reload_model()
+        if key in ("hotkey", "hotkey_mode"):
+            self._apply_hotkey()
         if key == "keep_failed_audio" and value is False:
             # Wer das Aufheben abschaltet, will auch die schon aufgehobenen
             # Tonaufnahmen nicht mehr auf der Platte haben.
@@ -268,6 +281,81 @@ class App:
             self._stop_recording()
         elif not self.file_job_running:  # Knopf ist dann ohnehin gesperrt
             self._start_recording(device_label)
+
+    # --- Globale Taste --------------------------------------------------------
+
+    def _apply_hotkey(self):
+        """Listener passend zur Einstellung (neu) starten."""
+        if self.hotkey_listener is not None:
+            self.hotkey_listener.stop()
+            self.hotkey_listener = None
+        name = self.settings.get("hotkey")
+        if name == "aus":
+            return
+        listener = keyboard_control.HotkeyListener(name, self._hotkey_pressed, self._hotkey_released)
+        try:
+            listener.start()
+        except keyboard_control.KeyboardUnavailable as exc:
+            log.warning("Taste %s nicht verfügbar: %s", name, exc)
+            self._set_status(f"Die Taste {name} lässt sich hier nicht abfragen ({exc}). Unter Linux "
+                             f"geht das nur in einer X11-Sitzung, nicht unter Wayland.")
+            return
+        self.hotkey_listener = listener
+
+    def _hotkey_ready(self) -> bool:
+        if self.file_job_running:
+            self._set_status("Es läuft gerade eine Audiodatei – die Taste startet keine Aufnahme.")
+            return False
+        if self.transcriber.loaded_size is None:
+            self._set_status("Das Spracherkennungsmodell lädt noch – bitte kurz warten.")
+            return False
+        return True
+
+    def _hotkey_pressed(self):
+        if self.settings.get("hotkey_mode") == "hold":
+            if not self.recording and self._hotkey_ready():
+                self._hotkey_start()
+                self.hotkey_hold_active = self.recording
+        elif self.recording:
+            self._hotkey_stop()
+        elif self._hotkey_ready():
+            self._hotkey_start()
+
+    def _hotkey_released(self):
+        if self.hotkey_hold_active and self.recording:
+            self._hotkey_stop()
+        self.hotkey_hold_active = False
+
+    def _hotkey_start(self):
+        try:
+            device_label = self.window.evaluate_js("deviceSelect.value")
+        except Exception:
+            device_label = None
+        # Ton zuerst, Aufnahme danach - sonst landet der Piepton im ersten Haeppchen
+        if self.settings.get("beep"):
+            keyboard_control.beep(start=True)
+        self._start_recording(device_label)
+
+    def _hotkey_stop(self):
+        self._stop_recording()
+        if self.settings.get("beep"):
+            keyboard_control.beep(start=False)
+
+    def _own_window_focused(self) -> bool:
+        if sys.platform == "win32":
+            try:
+                return keyboard_control.own_window_has_focus_win32()
+            except Exception:
+                pass
+        return self.window_focused
+
+    def _ready_status(self, base: str = "Bereit") -> str:
+        name = self.settings.get("hotkey")
+        if name == "aus" or self.hotkey_listener is None:
+            return base
+        if self.settings.get("hotkey_mode") == "hold":
+            return f"{base} – {name} gedrückt halten zum Diktieren"
+        return f"{base} – {name} startet die Aufnahme"
 
     # --- Audiodateien -------------------------------------------------------
 
@@ -372,6 +460,7 @@ class App:
         self.settings.update(device_name=self.device_names.get(device_label))
         self.recording = True
         self.level_hint = None
+        self.typer.new_session()
         self._js("setRecordingState(true)")
         self.recording_status = warning or f"Nimmt auf... (→ {self.writer.path.name})"
         self._set_status(self.recording_status)
@@ -380,8 +469,9 @@ class App:
     def _stop_recording(self):
         self.capture.stop()
         self.recording = False
+        self.hotkey_hold_active = False
         self._js("setRecordingState(false)")
-        self._set_status("Bereit")
+        self._set_status(self._ready_status())
         log.info("Aufnahme beendet")
 
     def _update_level_hint(self):
@@ -438,7 +528,7 @@ class App:
                     elif msg["type"] == "model_ready":
                         self._push_settings()
                         self._js("setModelReady()")
-                        status = f"Bereit (Modell {msg['model']})"
+                        status = self._ready_status(f"Bereit (Modell {msg['model']})")
                         if model_error:
                             # Rueckfall nach gescheitertem Wechsel - der Fehler
                             # soll nicht unbemerkt weggewischt werden.
@@ -458,6 +548,8 @@ class App:
                                          f"Details im Log (Einstellungen → Log-Ordner öffnen)")
                     elif msg["type"] == "text":
                         self._append_text(msg["text"])
+                        if self.settings.get("type_into_window"):
+                            self.typer.type_chunk(msg["text"])
                         try:
                             self.writer.write(msg["text"])
                         except OSError as exc:

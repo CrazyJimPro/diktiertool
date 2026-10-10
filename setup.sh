@@ -44,6 +44,10 @@ fi
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+# pynput ohne evdev (siehe requirements.txt): das X11-Backend braucht nur
+# python-xlib, evdev muesste mit Kernel-Headern kompiliert werden.
+pip install --no-deps "pynput>=1.7,<2"
+pip install six "python-xlib>=0.17"
 
 ./install-desktop-entry.sh
 

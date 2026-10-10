@@ -455,6 +455,11 @@ body.glass .tab.active { background: rgba(255, 255, 255, 0.18); }
   min-height: 368px;
 }
 .tab-panel[hidden] { display: none; }
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 12px;
+}
 .field {
   display: flex;
   flex-direction: column;
