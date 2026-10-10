@@ -11,6 +11,23 @@ const themeToggle = document.getElementById("themeToggle");
 const copyButton = document.getElementById("copyButton");
 const clearButton = document.getElementById("clearButton");
 const folderButton = document.getElementById("folderButton");
+const settingsToggle = document.getElementById("settingsToggle");
+const mainView = document.getElementById("mainView");
+const settingsView = document.getElementById("settingsView");
+const modelSelect = document.getElementById("modelSelect");
+const modelHint = document.getElementById("modelHint");
+const languageSelect = document.getElementById("languageSelect");
+const outputDir = document.getElementById("outputDir");
+const chooseDirButton = document.getElementById("chooseDirButton");
+const resetDirButton = document.getElementById("resetDirButton");
+const filePerSession = document.getElementById("filePerSession");
+const punctuationCommands = document.getElementById("punctuationCommands");
+const vocabulary = document.getElementById("vocabulary");
+const settingsDone = document.getElementById("settingsDone");
+
+const MODEL_HINT_DEFAULT = "Ein Wechsel lädt das Modell neu, beim ersten Mal mit Download.";
+let modelReady = false;
+let isRecording = false;
 
 // Genau die Zeilen, wie sie auch in die Datei geschrieben werden - Kopieren
 // soll nicht von der Darstellung im DOM abhaengen.
@@ -22,7 +39,29 @@ window.addEventListener("pywebviewready", () => {
   versionLabel.addEventListener("click", () => pywebview.api.open_url(versionLabel.dataset.url));
   updateBadge.addEventListener("click", () => pywebview.api.open_url(updateBadge.dataset.url));
   folderButton.addEventListener("click", () => pywebview.api.open_output_folder());
+
+  modelSelect.addEventListener("change", () => pywebview.api.update_setting("model_size", modelSelect.value));
+  languageSelect.addEventListener("change", () => pywebview.api.update_setting("language", languageSelect.value));
+  filePerSession.addEventListener("change", () => pywebview.api.update_setting("file_per_session", filePerSession.checked));
+  punctuationCommands.addEventListener("change",
+    () => pywebview.api.update_setting("punctuation_commands", punctuationCommands.checked));
+  // "change" feuert bei einem Textfeld erst beim Verlassen - also nicht bei
+  // jedem Tastendruck, aber spaetestens beim Klick auf "Fertig".
+  vocabulary.addEventListener("change", () => pywebview.api.update_setting("vocabulary", vocabulary.value));
+  chooseDirButton.addEventListener("click", () => pywebview.api.choose_output_dir());
+  resetDirButton.addEventListener("click", () => pywebview.api.reset_output_dir());
 });
+
+function showSettings(open) {
+  settingsView.hidden = !open;
+  mainView.hidden = open;
+  settingsToggle.classList.toggle("active", open);
+  settingsToggle.setAttribute("aria-label", open ? "Einstellungen schließen" : "Einstellungen öffnen");
+}
+
+settingsToggle.addEventListener("click", () => showSettings(settingsView.hidden));
+settingsDone.addEventListener("click", () => showSettings(false));
+modelHint.textContent = MODEL_HINT_DEFAULT;
 
 copyButton.addEventListener("click", async () => {
   const text = transcript.join("\n");
@@ -99,8 +138,40 @@ function setStatus(text) {
   status.textContent = text;
 }
 
+function setModelLoading() {
+  modelReady = false;
+  startButton.disabled = true;
+  modelSelect.disabled = true;
+  modelHint.textContent = "Modell wird geladen … beim ersten Mal mit Download, das kann einige Minuten dauern.";
+}
+
 function setModelReady() {
+  modelReady = true;
   startButton.disabled = false;
+  modelSelect.disabled = isRecording;
+  modelHint.textContent = MODEL_HINT_DEFAULT;
+}
+
+// Folgt kein Rueckfall auf ein anderes Modell (das kaeme als setModelLoading
+// gleich hinterher), muss die Auswahl frei werden - sonst gaebe es keinen Weg
+// mehr, es mit einem anderen Modell oder spaeter erneut zu versuchen.
+function setModelError(message) {
+  modelReady = false;
+  startButton.disabled = true;
+  modelSelect.disabled = isRecording;
+  modelHint.textContent = message;
+}
+
+function setSettings(values) {
+  modelSelect.value = values.model_size;
+  languageSelect.value = values.language;
+  filePerSession.checked = values.file_per_session;
+  punctuationCommands.checked = values.punctuation_commands;
+  // Nicht ueberschreiben, waehrend jemand darin tippt
+  if (document.activeElement !== vocabulary) vocabulary.value = values.vocabulary.join("\n");
+  outputDir.textContent = values.output_dir_display;
+  outputDir.title = values.output_dir_display;
+  resetDirButton.hidden = values.output_dir_is_default;
 }
 
 function setLevel(fraction) {
@@ -117,7 +188,12 @@ function appendText(text) {
   updateTextButtons();
 }
 
-function setRecordingState(isRecording) {
+function setRecordingState(recording) {
+  isRecording = recording;
+  // Modellwechsel mitten in der Aufnahme wuerde die Erkennung fuer die Dauer
+  // des Ladens anhalten - Sprache, Woerter und Satzzeichen dagegen wirken
+  // sofort ab dem naechsten Haeppchen und bleiben frei.
+  modelSelect.disabled = isRecording || !modelReady;
   startButton.textContent = isRecording ? "Stop" : "Start";
   startButton.classList.toggle("recording", isRecording);
   deviceSelect.disabled = isRecording;

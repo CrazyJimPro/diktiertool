@@ -165,7 +165,8 @@ body.glass .text-output,
 body.glass .device-select,
 body.glass .btn-secondary,
 body.glass .level-meter,
-body.glass .theme-toggle {
+body.glass .icon-btn,
+body.glass .vocabulary {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -206,8 +207,14 @@ body.glass .theme-toggle {
   50% { transform: scale(1.04); }
 }
 
-.theme-toggle {
+.header-actions {
   margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-self: center;
+}
+
+.icon-btn {
   width: 34px;
   height: 34px;
   flex-shrink: 0;
@@ -221,8 +228,9 @@ body.glass .theme-toggle {
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
-.theme-toggle:hover { background: var(--border); color: var(--text-primary); transform: translateY(-1px); }
-.theme-toggle svg { width: 17px; height: 17px; }
+.icon-btn:hover, .icon-btn.active { background: var(--border); color: var(--text-primary); }
+.icon-btn:hover { transform: translateY(-1px); }
+.icon-btn svg { width: 17px; height: 17px; }
 
 /* Zeigt jeweils das Icon des naechsten Designs im Kreis (hell -> dunkel ->
    glass -> hell), nicht das aktuelle - so war es schon vor dem dritten
@@ -295,6 +303,7 @@ body.glass .device-select {
 }
 .btn-secondary:hover { background: var(--border); transform: translateY(-1px); }
 .btn-secondary:disabled, .device-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-secondary[hidden] { display: none; }
 .btn-small {
   padding: 8px 14px;
   border-radius: 12px;
@@ -388,4 +397,91 @@ body.glass .device-select {
 .text-output .placeholder {
   color: var(--text-secondary);
   font-style: italic;
+}
+
+/* Einstellungen: ersetzen den Hauptbereich der Karte, statt als eigenes
+   Fenster aufzugehen - so gilt automatisch dasselbe Design. */
+.main-view[hidden], .settings-view[hidden] { display: none; }
+
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.settings-view h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 19px;
+  margin: 0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+.field-hint {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.path {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;     /* ganzer Pfad steht im Tooltip */
+}
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.check .field-hint { font-weight: 400; margin-top: 2px; }
+.check input {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--terracotta);
+  cursor: pointer;
+}
+.vocabulary {
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-light);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.vocabulary::placeholder { color: var(--text-secondary); }
+.vocabulary:focus, .device-select:focus-visible {
+  outline: 2px solid var(--terracotta-2);
+  outline-offset: 1px;
+}
+.settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
 }

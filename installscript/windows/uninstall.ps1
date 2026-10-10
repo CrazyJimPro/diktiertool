@@ -5,7 +5,8 @@ Diktiertool - Aufraeumen vor der Deinstallation.
 Wird von setup.iss aufgerufen, bevor Inno Setup den Installationsordner
 entfernt. Aufgabe: das laufende Programm beenden und die Verknuepfungen
 loeschen, die install.ps1 per Skript angelegt hat (Inno kennt die nicht, weil
-sie nicht aus seinem [Icons]-Abschnitt stammen).
+sie nicht aus seinem [Icons]-Abschnitt stammen), sowie die Einstellungen unter
+%APPDATA%\Diktiertool.
 
 Die Diktate selbst liegen unter Dokumente\Diktiertool und werden hier
 ausdruecklich NICHT angefasst - das ist das einzige am ganzen Programm, was
@@ -44,6 +45,18 @@ if ($desktop) {
     if (Test-Path $shortcut) {
         Remove-Item $shortcut -Force -ErrorAction SilentlyContinue
         Write-Host "Desktop-Verknuepfung entfernt."
+    }
+}
+
+# Einstellungen (settings.py) liegen ausserhalb des Programmordners, damit ein
+# Update sie nicht ueberschreibt - Inno kennt sie deshalb nicht. Mikrofon,
+# Modell und eigene Woerter sind schnell wieder eingestellt, eine Neuinstallation
+# soll sauber starten.
+if ($env:APPDATA) {
+    $settingsDir = Join-Path $env:APPDATA "Diktiertool"
+    if (Test-Path $settingsDir) {
+        Remove-Item $settingsDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Einstellungen entfernt."
     }
 }
 

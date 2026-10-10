@@ -58,6 +58,9 @@ In `Dokumente\Diktiertool\diktat.txt` – nicht im Programmordner. Zwei Gründe:
 man seine Diktate, und die Deinstallation entfernt den Programmordner vollständig, die
 Diktate aber ausdrücklich nicht.
 
+Einen anderen Ordner oder eine eigene Datei pro Aufnahme stellst du in den
+[Einstellungen](#einstellungen) ein.
+
 ## Update
 
 Beim Start prüft das Tool im Hintergrund, ob ein neueres Release existiert. Ist eines
@@ -69,8 +72,10 @@ Spracherkennungsmodell erneut zu laden.
 ## Deinstallation
 
 Über "Apps & Features" (oder den Eintrag "Deinstallieren" im Startmenü). Entfernt den
-kompletten Programmordner samt portablem Python und Modell-Zwischenspeicher.
-**Die Diktate unter `Dokumente\Diktiertool` bleiben erhalten.**
+kompletten Programmordner samt portablem Python und Modell-Zwischenspeicher, außerdem die
+Einstellungen unter `%APPDATA%\Diktiertool`.
+**Die Diktate unter `Dokumente\Diktiertool` (oder im selbst gewählten Ordner) bleiben
+erhalten.**
 
 ## Bekannte Eigenheiten unter Windows
 
@@ -170,7 +175,8 @@ Danach wie gewohnt `./start.sh` oder über die Desktop-Verknüpfung starten.
 
 Erkannter Text landet fortlaufend in `diktat.txt` im Projektordner, jede Sitzung mit einem
 Datum/Uhrzeit-Trenner. Diese Datei ist bewusst nicht Teil von Git (`.gitignore`) – sie
-bleibt ausschließlich auf diesem Rechner.
+bleibt ausschließlich auf diesem Rechner. Ordner und Aufteilung lassen sich in den
+[Einstellungen](#einstellungen) ändern.
 
 ---
 
@@ -182,7 +188,67 @@ bleibt ausschließlich auf diesem Rechner.
   Absätzen. Danach z. B. in eine Mail oder ein Word-Dokument einfügen (Strg+V).
 - **Leeren:** leert nur die Anzeige im Fenster. In der Datei bleibt alles stehen.
 - **Ordner öffnen:** öffnet den Ordner, in dem `diktat.txt` liegt (unter Windows
-  `Dokumente\Diktiertool`, unter Linux den Projektordner).
+  `Dokumente\Diktiertool`, unter Linux den Projektordner – oder den in den Einstellungen
+  gewählten).
+
+## Einstellungen
+
+Das Zahnrad oben rechts (neben dem Design-Knopf) öffnet die Einstellungen. Jede Änderung
+wird sofort gespeichert, „Fertig“ führt zurück zur Aufnahme.
+
+### Spracherkennungsmodell wechseln
+
+1. Unter „Spracherkennungsmodell“ eines auswählen:
+   - **small:** schnell, die Vorgabe. Reicht für deutliches Diktieren meist aus.
+   - **medium:** genauer, braucht aber spürbar länger, bis der Text erscheint.
+   - **large-v3-turbo:** am genauesten, braucht am meisten Arbeitsspeicher (rund 2 GB frei).
+2. Das Modell lädt sofort neu. Beim ersten Mal wird es heruntergeladen (medium ca. 1,5 GB,
+   large-v3-turbo ca. 1,6 GB), das kann einige Minuten dauern. Bis dahin ist „Start“
+   gesperrt.
+3. Danach steht in der Statuszeile „Bereit (Modell …)“.
+
+Während einer Aufnahme lässt sich das Modell nicht wechseln, erst nach „Stop“.
+
+### Sprache
+
+„Deutsch“ (Vorgabe), „Englisch“ oder „Automatisch erkennen“. Bei „Automatisch“ bestimmt
+die Erkennung die Sprache für jeden Satz neu. Bei kurzen Sätzen liegt sie dabei
+gelegentlich daneben. Wer nur eine Sprache spricht, stellt sie deshalb besser fest ein.
+Die Änderung gilt sofort, auch mitten in einer Aufnahme.
+
+### Ausgabeordner
+
+1. Auf **„Ändern …“** klicken und einen Ordner auswählen.
+2. Ab der nächsten Aufnahme landet der Text dort.
+3. **„Standard“** führt zurück zum ursprünglichen Ordner (der Knopf erscheint nur, wenn ein
+   eigener Ordner gewählt ist).
+
+Ist der gewählte Ordner beim Start einer Aufnahme nicht erreichbar (USB-Stick abgezogen,
+Netzlaufwerk getrennt), schreibt das Tool in den Standardordner und sagt das in der
+Statuszeile.
+
+### Für jede Aufnahme eine eigene Datei
+
+Ist der Haken gesetzt, bekommt jede Aufnahme eine eigene Datei mit Datum und Uhrzeit im
+Namen, z. B. `diktat_2026-10-10_14-30.txt`, statt alles nacheinander in `diktat.txt` zu
+schreiben. Welche Datei gerade beschrieben wird, steht beim Start in der Statuszeile.
+
+### Satzzeichen per Sprache
+
+Ist der Haken gesetzt, werden „Komma“, „Punkt“, „Fragezeichen“, „Ausrufezeichen“ und
+„Doppelpunkt“ zum jeweiligen Zeichen. Vorgabe ist aus: Die Erkennung setzt Satzzeichen
+ohnehin selbst, und „der Punkt ist …“ würde sonst zu „der. Ist …“.
+
+### Eigene Wörter
+
+Namen und Fachbegriffe, die sonst falsch geschrieben werden: einen Begriff pro Zeile
+eintragen (Komma geht auch). Sie gelten ab dem nächsten Satz. Am besten wirken wenige
+gezielte Wörter, eine lange Liste verwässert den Effekt.
+
+### Wo die Einstellungen gespeichert werden
+
+- Windows: `%APPDATA%\Diktiertool\settings.json`
+- Linux: `~/.config/diktiertool/settings.json`
 
 ## Absätze per Sprache
 
@@ -193,21 +259,15 @@ Beim Diktieren einfach mitsprechen:
 | „neuer Absatz“ | Leerzeile, danach geht es in einem neuen Absatz weiter |
 | „neue Zeile“ | Zeilenumbruch |
 
-Satzzeichen per Sprache („Komma“, „Punkt“, „Fragezeichen“, „Ausrufezeichen“,
-„Doppelpunkt“) sind vorbereitet, aber noch ausgeschaltet: Die Erkennung setzt Satzzeichen
-ohnehin selbst, und „der Punkt ist …“ würde sonst zu „der. Ist …“. Einschalten lässt sich das
-ab der nächsten Version in den Einstellungen.
+Satzzeichen per Sprache („Komma“, „Punkt“ …) sind ausgeschaltet und lassen sich in den
+[Einstellungen](#satzzeichen-per-sprache) einschalten.
 
 ## Zuletzt benutztes Mikrofon
 
 Das Tool merkt sich das Mikrofon, mit dem zuletzt eine Aufnahme gestartet wurde, und wählt
 es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie bisher
-„Standard-Mikrofon“ in der Liste.
-
-Gespeichert wird das in einer kleinen Einstellungsdatei:
-
-- Windows: `%APPDATA%\Diktiertool\settings.json`
-- Linux: `~/.config/diktiertool/settings.json`
+„Standard-Mikrofon“ in der Liste. Gespeichert wird das mit den übrigen
+[Einstellungen](#wo-die-einstellungen-gespeichert-werden).
 
 ## Wenn etwas nicht klappt
 
@@ -216,6 +276,12 @@ Gespeichert wird das in einer kleinen Einstellungsdatei:
 - **Das Tool startet nicht mehr, nachdem an der Einstellungsdatei herumgebastelt wurde:**
   Das sollte nicht passieren (eine kaputte Datei wird ignoriert). Falls doch, die Datei
   `settings.json` (Pfad siehe oben) löschen und neu starten.
+- **Nach einem Modellwechsel steht „Modell … ließ sich nicht laden“:** Meist ist der
+  Download abgebrochen (keine Internetverbindung, zu wenig Speicherplatz). Das Tool arbeitet
+  dann mit dem vorherigen Modell weiter. Später in den Einstellungen erneut auswählen.
+- **Der Text landet nicht im gewählten Ordner:** Die Statuszeile nennt beim Start den
+  Grund und den Ordner, in den stattdessen geschrieben wird. Ordner in den Einstellungen
+  neu wählen.
 - **„Kopieren“ tut scheinbar nichts:** Der Knopf ist gesperrt, solange im Fenster kein Text
   steht. Nach dem Klick zeigt er kurz „Kopiert ✓“.
 
@@ -232,11 +298,6 @@ Gespeichert wird das in einer kleinen Einstellungsdatei:
   Wiederholungsschleifen („und dann und dann und dann …“). Ganz verhindern lässt sich das
   nicht. Taucht ein neuer Phantomsatz öfter auf, kann er in `text_postprocess.py` in die
   Liste `_PHANTOM_PATTERNS` aufgenommen werden.
-
-## Modellgröße ändern
-
-In `config.py` steht `MODEL_SIZE = "small"`. Für höhere Genauigkeit (aber langsamer)
-kann das auf `"medium"` geändert werden – lädt beim nächsten Start einmalig neu.
 
 ## Neue Version veröffentlichen
 

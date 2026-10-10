@@ -36,9 +36,16 @@ def is_phantom(text: str) -> bool:
     return bool(_PHANTOM_RE.match(text.strip()))
 
 
-def filter_segments(segments) -> str:
+def _normalize(text: str) -> str:
+    return " ".join(re.sub(r"[^\w\s]", " ", text).split()).casefold()
+
+
+def filter_segments(segments, hotwords: str | None = None) -> str:
     """Fuegt die Segmente von model.transcribe() zu Text zusammen und laesst
     dabei vermutlich erfundene weg."""
+    # Die eigenen Woerter gehen als Prompt ans Modell - bei Stille gibt Whisper
+    # den Prompt gern einfach wieder aus ("Meier, Kubernetes, Grundbuchamt").
+    echo = _normalize(hotwords) if hotwords else None
     kept = []
     for segment in segments:
         if getattr(segment, "compression_ratio", 0) > MAX_COMPRESSION_RATIO:
@@ -46,6 +53,12 @@ def filter_segments(segments) -> str:
         if getattr(segment, "no_speech_prob", 0) > MAX_NO_SPEECH_PROB:
             continue
         if is_phantom(segment.text):
+            continue
+        if echo and _normalize(segment.text) == echo:
+            continue
+        # Nur Satzzeichen ("... ... ...") - kommt bei Rauschen vor, mit
+        # eigenen Woertern im Prompt deutlich haeufiger
+        if not re.search(r"\w", segment.text):
             continue
         kept.append(segment.text)
     return "".join(kept).strip()

@@ -16,12 +16,14 @@ import config
 from update_check import REPO, get_latest_version, is_newer
 from audio_capture import AudioCapture, list_input_devices
 from transcriber import Transcriber
-from file_writer import FileWriter
-from settings import Settings
+from file_writer import DEFAULT_OUTPUT_DIR, FileWriter
+from settings import Settings, parse_vocabulary
 
 POLL_S = 0.1
 WATCHDOG_TIMEOUT_S = 3.0
 STANDARD_LABEL = "Standard-Mikrofon"
+# Ungefaehre Downloadgroesse beim ersten Laden, nur fuer die Statuszeile
+MODEL_DOWNLOAD_SIZE = {"small": "500 MB", "medium": "1,5 GB", "large-v3-turbo": "1,6 GB"}
 WEB_DIR = pathlib.Path(__file__).resolve().parent / "web"
 
 # Lineares RMS*SCALE reagiert sehr empfindlich auf die Eingangsempfindlichkeit
@@ -72,6 +74,15 @@ class Api:
     def open_output_folder(self):
         self._app.open_output_folder()
 
+    def update_setting(self, key, value):
+        self._app.update_setting(key, value)
+
+    def choose_output_dir(self):
+        self._app.choose_output_dir()
+
+    def reset_output_dir(self):
+        self._app.update_setting("output_dir", None)
+
 
 class App:
     def __init__(self):
@@ -81,7 +92,7 @@ class App:
         self.stop_event = threading.Event()
 
         self.settings = Settings()
-        self.writer = FileWriter()
+        self.writer = FileWriter(self.settings)
         self.capture = AudioCapture(self.audio_q, self.error_q, device=None)
         self.transcriber = Transcriber(self.audio_q, self.result_q, self.stop_event, self.settings)
 
@@ -112,8 +123,7 @@ class App:
         self._js(f"setVersion({json.dumps(config.VERSION)}, "
                   f"{json.dumps(f'https://github.com/{REPO}/releases')})")
         self.refresh_devices()
-        self._set_status("Lade Spracherkennungsmodell (beim ersten Mal ca. 500MB, "
-                          "kann einige Minuten dauern)...")
+        self._push_settings()
         self.transcriber.start()
 
         threading.Thread(target=self._check_for_update, daemon=True).start()
@@ -144,6 +154,40 @@ class App:
             )
         self._js(f"setDeviceList({json.dumps(labels)}, {json.dumps(selected)})")
 
+    def _push_settings(self):
+        values = self.settings.all()
+        values["output_dir_display"] = str(self.writer.output_dir())
+        values["output_dir_is_default"] = values["output_dir"] is None
+        self._js(f"setSettings({json.dumps(values)})")
+
+    def update_setting(self, key, value):
+        if key == "vocabulary":
+            value = parse_vocabulary(value if isinstance(value, str) else "")
+        elif key not in ("model_size", "language", "output_dir",
+                         "file_per_session", "punctuation_commands"):
+            return
+        if key == "model_size" and self.recording:
+            # Der Dialog sperrt die Auswahl waehrend der Aufnahme ohnehin -
+            # das hier ist nur die Absicherung dahinter.
+            self._push_settings()
+            return
+        self.settings.update(**{key: value})
+        if key == "model_size":
+            self.transcriber.reload_model()
+        self._push_settings()
+
+    def choose_output_dir(self):
+        result = self.window.create_file_dialog(
+            webview.FileDialog.FOLDER, directory=str(self.writer.output_dir()),
+        )
+        if not result:
+            return  # abgebrochen
+        chosen = pathlib.Path(result[0] if isinstance(result, (list, tuple)) else result)
+        # Wer den Standardordner wieder auswaehlt, soll auch wieder beim
+        # Standard landen (und nicht bei einem fest eingetragenen Pfad, der
+        # nach einer OneDrive-Umleitung ins Leere zeigt).
+        self.update_setting("output_dir", None if chosen == DEFAULT_OUTPUT_DIR else str(chosen))
+
     def _set_status(self, text: str):
         self._js(f"setStatus({json.dumps(text)})")
 
@@ -164,11 +208,17 @@ class App:
             self._set_status(f"Fehler: Gerät nicht verfügbar ({exc})")
             return
 
+        try:
+            warning = self.writer.start_session()
+        except OSError as exc:
+            self.capture.stop()
+            self._set_status(f"Fehler: Ausgabedatei lässt sich nicht anlegen ({exc})")
+            return
+
         self.settings.update(device_name=self.device_names.get(device_label))
-        self.writer.start_session()
         self.recording = True
         self._js("setRecordingState(true)")
-        self._set_status("Nimmt auf...")
+        self._set_status(warning or f"Nimmt auf... (→ {self.writer.path.name})")
 
     def _stop_recording(self):
         self.capture.stop()
@@ -177,9 +227,9 @@ class App:
         self._set_status("Bereit")
 
     def open_output_folder(self):
-        folder = self.writer.path.parent
-        folder.mkdir(parents=True, exist_ok=True)
+        folder = self.writer.output_dir()
         try:
+            folder.mkdir(parents=True, exist_ok=True)
             if sys.platform == "win32":
                 os.startfile(folder)
             else:
@@ -195,18 +245,42 @@ class App:
         self._set_status(f"Fehler: {message} – Gerät neu auswählen und Start drücken")
 
     def _poll_loop(self):
+        model_error = None
         while not self.stop_event.is_set():
             time.sleep(POLL_S)
 
             try:
                 while True:
                     msg = self.result_q.get_nowait()
-                    if msg["type"] == "model_ready":
+                    if msg["type"] == "model_loading":
+                        self._js("setModelLoading()")
+                        size = MODEL_DOWNLOAD_SIZE.get(msg["model"], "")
+                        self._set_status(f"Lade Spracherkennungsmodell {msg['model']} "
+                                         f"(beim ersten Mal ca. {size} Download, "
+                                         f"kann einige Minuten dauern)...")
+                    elif msg["type"] == "model_ready":
+                        self._push_settings()
                         self._js("setModelReady()")
-                        self._set_status("Bereit")
+                        status = f"Bereit (Modell {msg['model']})"
+                        if model_error:
+                            # Rueckfall nach gescheitertem Wechsel - der Fehler
+                            # soll nicht unbemerkt weggewischt werden.
+                            status += f" – {model_error}"
+                            model_error = None
+                        self._set_status(status)
+                    elif msg["type"] == "model_error":
+                        self._push_settings()
+                        model_error = (f"Modell {msg['model']} ließ sich nicht laden "
+                                       f"({msg['error']})")
+                        self._js(f"setModelError({json.dumps(model_error)})")
+                        self._set_status(f"Fehler: {model_error}")
                     elif msg["type"] == "text":
                         self._append_text(msg["text"])
-                        self.writer.write(msg["text"])
+                        try:
+                            self.writer.write(msg["text"])
+                        except OSError as exc:
+                            self._set_status(f"Fehler: Text konnte nicht in die Datei "
+                                             f"geschrieben werden ({exc})")
             except queue.Empty:
                 pass
 
