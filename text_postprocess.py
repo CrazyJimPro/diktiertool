@@ -40,27 +40,38 @@ def _normalize(text: str) -> str:
     return " ".join(re.sub(r"[^\w\s]", " ", text).split()).casefold()
 
 
-def filter_segments(segments, hotwords: str | None = None) -> str:
-    """Fuegt die Segmente von model.transcribe() zu Text zusammen und laesst
-    dabei vermutlich erfundene weg."""
+def _reject_reason(segment, echo: str | None) -> str | None:
+    """Grund, ein Segment zu verwerfen, oder None. Die Gruende landen (nur als
+    Zaehler, nie mit Text) im Diagnose-Log."""
+    if getattr(segment, "compression_ratio", 0) > MAX_COMPRESSION_RATIO:
+        return "wiederholung"
+    if getattr(segment, "no_speech_prob", 0) > MAX_NO_SPEECH_PROB:
+        return "keine_sprache"
+    if is_phantom(segment.text):
+        return "phantom"
     # Die eigenen Woerter gehen als Prompt ans Modell - bei Stille gibt Whisper
     # den Prompt gern einfach wieder aus ("Meier, Kubernetes, Grundbuchamt").
+    if echo and _normalize(segment.text) == echo:
+        return "echo"
+    # Nur Satzzeichen ("... ... ...") - kommt bei Rauschen vor, mit
+    # eigenen Woertern im Prompt deutlich haeufiger
+    if not re.search(r"\w", segment.text):
+        return "leer"
+    return None
+
+
+def filter_segments(segments, hotwords: str | None = None, rejected=None) -> str:
+    """Fuegt die Segmente von model.transcribe() zu Text zusammen und laesst
+    dabei vermutlich erfundene weg. rejected (z. B. ein Counter) zaehlt auf
+    Wunsch mit, was aus welchem Grund wegfiel."""
     echo = _normalize(hotwords) if hotwords else None
     kept = []
     for segment in segments:
-        if getattr(segment, "compression_ratio", 0) > MAX_COMPRESSION_RATIO:
-            continue
-        if getattr(segment, "no_speech_prob", 0) > MAX_NO_SPEECH_PROB:
-            continue
-        if is_phantom(segment.text):
-            continue
-        if echo and _normalize(segment.text) == echo:
-            continue
-        # Nur Satzzeichen ("... ... ...") - kommt bei Rauschen vor, mit
-        # eigenen Woertern im Prompt deutlich haeufiger
-        if not re.search(r"\w", segment.text):
-            continue
-        kept.append(segment.text)
+        reason = _reject_reason(segment, echo)
+        if reason is None:
+            kept.append(segment.text)
+        elif rejected is not None:
+            rejected[reason] += 1
     return "".join(kept).strip()
 
 

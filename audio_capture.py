@@ -14,6 +14,8 @@ from config import (
     SILENCE_DURATION_MS,
     MAX_CHUNK_DURATION_S,
     MIN_CHUNK_DURATION_MS,
+    MUTE_THRESHOLD_RMS,
+    LEVEL_HINT_AFTER_S,
 )
 
 
@@ -99,6 +101,23 @@ class AudioCapture:
 
         self._level_lock = threading.Lock()
         self._level = 0.0
+        # Fuer den Stumm-/Zu-leise-Hinweis: wann zuletzt ueberhaupt Ton bzw.
+        # Ton ueber der Sprachschwelle kam (nur zwei Zeitstempel - der
+        # Callback soll schlank bleiben).
+        self._last_sound_time = time.monotonic()
+        self._last_speech_time = time.monotonic()
+
+    def level_problem(self) -> str | None:
+        """"stumm", wenn seit LEVEL_HINT_AFTER_S praktisch digitale Stille kam
+        (Mikrofon stummgeschaltet, falsches Geraet, Datenschutz-Sperre), "leise",
+        wenn nichts die Sprachschwelle erreichte - dann entsteht gar kein
+        Haeppchen, und es wuerde nie Text erscheinen. Sonst None."""
+        now = time.monotonic()
+        if now - self._last_sound_time >= LEVEL_HINT_AFTER_S:
+            return "stumm"
+        if now - self._last_speech_time >= LEVEL_HINT_AFTER_S:
+            return "leise"
+        return None
 
     def get_level(self) -> float:
         with self._level_lock:
@@ -138,6 +157,10 @@ class AudioCapture:
         rms = float(np.sqrt(np.mean(np.square(mono))))
         with self._level_lock:
             self._level = rms
+        if rms >= MUTE_THRESHOLD_RMS:
+            self._last_sound_time = self.last_callback_time
+        if rms > SILENCE_THRESHOLD_RMS:
+            self._last_speech_time = self.last_callback_time
 
         block_duration_s = frames / SAMPLE_RATE
 
@@ -175,6 +198,8 @@ class AudioCapture:
                 extra_settings=wasapi_extra_settings(self.device),
             )
             self.last_callback_time = time.monotonic()
+            self._last_sound_time = self.last_callback_time
+            self._last_speech_time = self.last_callback_time
             self.stream.start()
         except sd.PortAudioError as exc:
             self.stream = None

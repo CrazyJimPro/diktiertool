@@ -56,7 +56,7 @@ OUTPUT_FILE = _default_output_file()
 # Bei jedem Release manuell mit dem neuen Git-Tag synchron halten (siehe
 # update_check.py und installscript/windows/setup.iss - der CI-Workflow
 # vergleicht Tag und diese Nummer und bricht bei Abweichung ab)
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # Whisper
 MODEL_SIZE = "small"
@@ -77,3 +77,9 @@ SILENCE_THRESHOLD_RMS = 0.015
 SILENCE_DURATION_MS = 700
 MAX_CHUNK_DURATION_S = 18
 MIN_CHUNK_DURATION_MS = 300
+
+# Hinweis in der Statuszeile, wenn so lange kein Ton (unter MUTE_THRESHOLD_RMS:
+# praktisch digitale Stille, also stummgeschaltet) bzw. nichts ueber
+# SILENCE_THRESHOLD_RMS kam - dann wird nie ein Haeppchen fertig.
+MUTE_THRESHOLD_RMS = 0.002
+LEVEL_HINT_AFTER_S = 8.0

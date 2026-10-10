@@ -2,7 +2,12 @@ import gc
 import os
 import queue
 import threading
+import time
+from collections import Counter
 from pathlib import Path
+from typing import Iterable, NamedTuple
+
+import numpy as np
 
 # Muss vor dem faster_whisper-Import gesetzt werden: oneDNN waehlt auf dieser
 # AMD-CPU sonst standardmaessig AVX-512-Kernel, die hier reproduzierbar zu
@@ -31,6 +36,7 @@ from faster_whisper import WhisperModel
 
 import audio_file
 from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS, SAMPLE_RATE
+from diagnostics import log, normalize_gain, save_failed_recording
 from text_postprocess import apply_voice_commands, filter_segments
 
 
@@ -70,13 +76,17 @@ class Transcriber(threading.Thread):
         self.model = None
         self.loaded_size = None
         gc.collect()
+        started = time.monotonic()
         try:
             self.model = WhisperModel(
                 size, device="cpu", compute_type=COMPUTE_TYPE, cpu_threads=CPU_THREADS
             )
         except Exception as exc:  # Download abgebrochen, kein Netz, Platte voll ...
+            log.error("Modell %s ließ sich nicht laden: %s", size, exc)
             self.result_q.put({"type": "model_error", "model": size, "error": str(exc)})
             return False
+        log.info("Modell %s geladen in %.1f s (%d Threads, %s)", size, time.monotonic() - started,
+                 CPU_THREADS, COMPUTE_TYPE)
         self.loaded_size = size
         self.result_q.put({"type": "model_ready", "model": size})
         return True
@@ -105,14 +115,15 @@ class Transcriber(threading.Thread):
     def cancel_files(self):
         self.cancel_event.set()
 
-    def _transcribe_array(self, audio):
+    def _transcribe_array(self, audio) -> "Recognition":
         """Die einzige Stelle, die das Erkennungsmodell aufruft - live wie fuer
-        Audiodateien. Liefert (Segmente, Dauer in s, eigene Woerter als
-        Prompt-Text oder None); jedes Segment hat mindestens .start, .end und
-        .text. Eine zweite Engine (Fahrplan M6: Parakeet) haengt sich hier ein,
-        der Rest des Transcribers bleibt dann unveraendert."""
+        Audiodateien. Jedes Segment hat mindestens .start, .end und .text
+        (Whisper-Segmente zusaetzlich die Werte, nach denen filter_segments
+        aussortiert). Eine zweite Engine (Fahrplan M6: Parakeet) haengt sich
+        hier ein, der Rest des Transcribers bleibt dann unveraendert."""
         language = self.settings.get("language")
         hotwords = ", ".join(self.settings.get("vocabulary")) or None
+        audio, gain = normalize_gain(audio)
         # vad_filter=True (onnxruntime-basiert) bewusst deaktiviert: das startet
         # einen zweiten, unabhaengigen nativen Thread-Pool neben dem von
         # ctranslate2 und hat reproduzierbar zu Abstuerzen gefuehrt (Race
@@ -128,7 +139,7 @@ class Transcriber(threading.Thread):
             condition_on_previous_text=False,
             vad_filter=False,
         )
-        return segments, info.duration, hotwords
+        return Recognition(segments, info.duration, info.language, hotwords, gain)
 
     def run(self):
         self._load_with_fallback(previous=None)
@@ -158,13 +169,37 @@ class Transcriber(threading.Thread):
             if self.model is None:
                 continue  # kein Modell ladbar - Start ist dann ohnehin gesperrt
 
-            segments, _, hotwords = self._transcribe_array(chunk)
+            self._transcribe_chunk(chunk)
+
+    def _transcribe_chunk(self, chunk):
+        started = time.monotonic()
+        rejected = Counter()
+        try:
+            result = self._transcribe_array(chunk)
+            segments = list(result.segments)  # Live-Haeppchen sind kurz - gleich ganz auswerten
             text = apply_voice_commands(
-                filter_segments(segments, hotwords=hotwords),
+                filter_segments(segments, hotwords=result.hotwords, rejected=rejected),
                 punctuation=self.settings.get("punctuation_commands"),
             )
-            if text is not None:
-                self.result_q.put({"type": "text", "text": text})
+        except Exception as exc:
+            # Frueher beendete ein Fehler hier still den ganzen Thread - danach
+            # kam einfach kein Text mehr, ohne jeden Hinweis.
+            log.exception("Erkennung eines Häppchens fehlgeschlagen")
+            self.result_q.put({"type": "recognition_error", "error": str(exc)})
+            return
+        if text is not None:
+            self.result_q.put({"type": "text", "text": text})
+
+        saved = None
+        if text is None and self.settings.get("keep_failed_audio"):
+            saved = save_failed_recording(chunk, SAMPLE_RATE)
+        log.info(
+            "live dauer=%.1fs spitze=%.3f anhebung=x%.1f sprache=%s segmente=%d verworfen=%s "
+            "zeichen=%d rechenzeit=%.1fs%s",
+            len(chunk) / SAMPLE_RATE, float(np.max(np.abs(chunk))), result.gain, result.language,
+            len(segments), _counter_text(rejected), len(text or ""), time.monotonic() - started,
+            f" aufgehoben={saved.name}" if saved else "",
+        )
 
     def _run_file_job(self, job: dict):
         paths = job["paths"]
@@ -188,25 +223,33 @@ class Transcriber(threading.Thread):
                 return
             out_path = audio_file.result_path(path, fallback_dir)
         except audio_file.AudioFileError as exc:
+            log.warning("Datei (%s): %s", path.suffix, exc)
             self.result_q.put({**done, "error": str(exc)})
             return
 
         self.result_q.put({"type": "file_text", "text": f"— {path.name} —"})
         punctuation = self.settings.get("punctuation_commands")
-        segments, duration, hotwords = self._transcribe_array(audio)
-        duration = duration or 1.0
         paragraphs = Paragraphs(lambda text: self._emit_paragraph(out_path, text))
         last_percent = 0
+        segment_count = 0
+        chars = 0
+        rejected = Counter()
+        started = time.monotonic()
+        result = None
         try:
-            for segment in segments:
+            result = self._transcribe_array(audio)
+            duration = result.duration or 1.0
+            for segment in result.segments:
                 if self.cancel_event.is_set() or self.stop_event.is_set():
                     done["cancelled"] = True
                     break
+                segment_count += 1
                 text = apply_voice_commands(
-                    filter_segments([segment], hotwords=hotwords),
+                    filter_segments([segment], hotwords=result.hotwords, rejected=rejected),
                     punctuation=punctuation,
                 )
                 if text is not None:
+                    chars += len(text)
                     paragraphs.add(segment.start, segment.end, text)
                 percent = min(99, int(segment.end / duration * 100))
                 if percent != last_percent:
@@ -217,9 +260,23 @@ class Transcriber(threading.Thread):
             if done["cancelled"]:
                 self._append(out_path, f"--- abgebrochen bei {last_percent} % ---\n")
         except OSError as exc:
+            log.error("Datei (%s): Ergebnis nicht schreibbar: %s", path.suffix, exc)
             self.result_q.put({**done, "error": f"Ergebnis ließ sich nicht schreiben ({exc})"})
             return
+        except Exception as exc:
+            # Ohne das bliebe der Auftrag fuer die Oberflaeche ewig "laufend"
+            log.exception("Datei (%s): Erkennung fehlgeschlagen", path.suffix)
+            self.result_q.put({**done, "error": f"Erkennung fehlgeschlagen ({exc}) – Details im Log"})
+            return
         finally:
+            # Dateiname bewusst nicht im Log - er kann schon zu viel verraten
+            log.info(
+                "datei %s dauer=%.0fs anhebung=x%.1f sprache=%s segmente=%d verworfen=%s zeichen=%d "
+                "rechenzeit=%.0fs%s",
+                path.suffix.lower(), len(audio) / SAMPLE_RATE, result.gain if result else 1.0,
+                result.language if result else "-", segment_count, _counter_text(rejected), chars,
+                time.monotonic() - started, " abgebrochen" if done["cancelled"] else "",
+            )
             del audio
             gc.collect()
         self.result_q.put({**done, "out_path": str(out_path)})
@@ -236,6 +293,18 @@ class Transcriber(threading.Thread):
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
+
+
+class Recognition(NamedTuple):
+    segments: Iterable      # bei Whisper ein Generator - erst beim Durchlaufen wird gerechnet
+    duration: float         # Laenge des Audios in s
+    language: str | None    # erkannte bzw. vorgegebene Sprache
+    hotwords: str | None    # eigene Woerter, wie sie als Prompt ans Modell gingen
+    gain: float             # Pegelanhebung (1.0 = keine)
+
+
+def _counter_text(counter: Counter) -> str:
+    return ",".join(f"{k}:{v}" for k, v in sorted(counter.items())) or "-"
 
 
 class Paragraphs:

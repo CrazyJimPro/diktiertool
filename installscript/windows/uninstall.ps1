@@ -60,5 +60,16 @@ if ($env:APPDATA) {
     }
 }
 
+# Diagnose-Log und aufgehobene Fehl-Aufnahmen (diagnostics.py) liegen immer
+# unter %LOCALAPPDATA%\Diktiertool\logs - beim Standard-Installationsordner
+# raeumt Inno sie ohnehin mit weg, bei einem anderen Ordner nicht.
+if ($env:LOCALAPPDATA) {
+    $logDir = Join-Path $env:LOCALAPPDATA "Diktiertool\logs"
+    if (Test-Path $logDir) {
+        Remove-Item $logDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Diagnose-Log entfernt."
+    }
+}
+
 Write-Host "Aufgeraeumt. Die Diktate in Dokumente\Diktiertool bleiben erhalten."
 exit 0

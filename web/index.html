@@ -70,58 +70,92 @@
     <div class="settings-view" id="settingsView" hidden>
       <h2>Einstellungen</h2>
 
-      <label class="field">
-        <span class="field-label">Spracherkennungsmodell</span>
-        <select class="device-select" id="modelSelect">
-          <option value="small">small – schnell (Standard)</option>
-          <option value="medium">medium – genauer, deutlich langsamer</option>
-          <option value="large-v3-turbo">large-v3-turbo – am genauesten, braucht am meisten Speicher</option>
-        </select>
-        <span class="field-hint" id="modelHint"></span>
-      </label>
-
-      <label class="field">
-        <span class="field-label">Sprache</span>
-        <select class="device-select" id="languageSelect">
-          <option value="de">Deutsch</option>
-          <option value="en">Englisch</option>
-          <option value="auto">Automatisch erkennen</option>
-        </select>
-      </label>
-
-      <div class="field">
-        <span class="field-label">Ausgabeordner</span>
-        <div class="path-row">
-          <span class="path" id="outputDir"></span>
-          <button class="btn-secondary btn-small" id="chooseDirButton" type="button">Ändern …</button>
-          <button class="btn-secondary btn-small" id="resetDirButton" type="button"
-                  title="Zurück zum Standardordner">Standard</button>
-        </div>
+      <!-- Reiter statt einer langen Liste: jeder bleibt kurz genug fuer das
+           Fenster, ohne dass man scrollen muss -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button" role="tab" data-tab="erkennung">Erkennung</button>
+        <button class="tab" type="button" role="tab" data-tab="ausgabe">Ausgabe</button>
+        <button class="tab" type="button" role="tab" data-tab="diagnose">Diagnose</button>
       </div>
 
-      <label class="check">
-        <input type="checkbox" id="filePerSession">
-        <span>
-          Für jede Aufnahme eine eigene Datei
-          <span class="field-hint">z. B. diktat_2026-10-10_14-30.txt statt alles nacheinander in diktat.txt</span>
-        </span>
-      </label>
+      <div class="tab-panel" data-panel="erkennung">
+        <label class="field">
+          <span class="field-label">Spracherkennungsmodell</span>
+          <select class="device-select" id="modelSelect">
+            <option value="small">small – schnell (Standard)</option>
+            <option value="medium">medium – genauer, deutlich langsamer</option>
+            <option value="large-v3-turbo">large-v3-turbo – am genauesten, braucht am meisten Speicher</option>
+          </select>
+          <span class="field-hint" id="modelHint"></span>
+        </label>
 
-      <label class="check">
-        <input type="checkbox" id="punctuationCommands">
-        <span>
-          Satzzeichen per Sprache
-          <span class="field-hint">„Komma“, „Punkt“, „Fragezeichen“ … werden zum Zeichen – leider auch
-            in „der Punkt ist …“.</span>
-        </span>
-      </label>
+        <label class="field">
+          <span class="field-label">Sprache</span>
+          <select class="device-select" id="languageSelect">
+            <option value="de">Deutsch</option>
+            <option value="en">Englisch</option>
+            <option value="auto">Automatisch erkennen</option>
+          </select>
+        </label>
 
-      <label class="field">
-        <span class="field-label">Eigene Wörter</span>
-        <textarea class="vocabulary" id="vocabulary" rows="2" spellcheck="false"
-                  placeholder="Ein Begriff pro Zeile, z. B. Namen oder Fachwörter"></textarea>
-        <span class="field-hint">Hilft bei Namen und Fachbegriffen. Wenige gezielte Wörter wirken am besten.</span>
-      </label>
+        <label class="field">
+          <span class="field-label">Eigene Wörter</span>
+          <textarea class="vocabulary" id="vocabulary" rows="3" spellcheck="false"
+                    placeholder="Ein Begriff pro Zeile, z. B. Namen oder Fachwörter"></textarea>
+          <span class="field-hint">Hilft bei Namen und Fachbegriffen. Wenige gezielte Wörter wirken am besten.</span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="punctuationCommands">
+          <span>
+            Satzzeichen per Sprache
+            <span class="field-hint">„Komma“, „Punkt“, „Fragezeichen“ … werden zum Zeichen – leider auch
+              in „der Punkt ist …“.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="tab-panel" data-panel="ausgabe" hidden>
+        <div class="field">
+          <span class="field-label">Ausgabeordner</span>
+          <div class="path-row">
+            <span class="path" id="outputDir"></span>
+            <button class="btn-secondary btn-small" id="chooseDirButton" type="button">Ändern …</button>
+            <button class="btn-secondary btn-small" id="resetDirButton" type="button"
+                    title="Zurück zum Standardordner">Standard</button>
+          </div>
+          <span class="field-hint">Gilt für Diktate. Transkripte von Audiodateien landen neben der Audiodatei.</span>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="filePerSession">
+          <span>
+            Für jede Aufnahme eine eigene Datei
+            <span class="field-hint">z. B. diktat_2026-10-10_14-30.txt statt alles nacheinander in diktat.txt</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="tab-panel" data-panel="diagnose" hidden>
+        <div class="field">
+          <span class="field-label">Protokoll</span>
+          <span class="field-hint">Für jedes erkannte Stück eine Zeile mit Messwerten (Dauer, Pegel,
+            Rechenzeit, was verworfen wurde) – nie der erkannte Text. Kann bei Problemen gefahrlos
+            weitergegeben werden.</span>
+          <div class="path-row">
+            <button class="btn-secondary btn-small" id="logFolderButton" type="button">Log-Ordner öffnen</button>
+          </div>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="keepFailedAudio">
+          <span>
+            Nicht erkannte Aufnahmen aufheben
+            <span class="field-hint">Stücke, aus denen kein Text wurde, als WAV im Log-Ordner – nur die
+              letzten 3. Hilft herauszufinden, ob das Mikrofon das Problem ist. Abschalten löscht sie.</span>
+          </span>
+        </label>
+      </div>
 
       <div class="settings-footer">
         <span class="field-hint">Änderungen werden sofort gespeichert.</span>

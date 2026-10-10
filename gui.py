@@ -19,10 +19,18 @@ from audio_file import AUDIO_EXTENSIONS
 from transcriber import Transcriber
 from file_writer import DEFAULT_OUTPUT_DIR, FileWriter
 from settings import Settings, parse_vocabulary
+import diagnostics
+from diagnostics import log
 
 POLL_S = 0.1
 WATCHDOG_TIMEOUT_S = 3.0
 STANDARD_LABEL = "Standard-Mikrofon"
+LEVEL_HINTS = {
+    "stumm": "Kein Ton vom Mikrofon – stummgeschaltet, falsches Gerät gewählt oder "
+             "in den Windows-Datenschutzeinstellungen gesperrt?",
+    "leise": "Seit einigen Sekunden nichts zu hören – falls du gerade sprichst: Mikrofon "
+             "zu leise (Pegel in den Sound-Einstellungen erhöhen oder näher heran).",
+}
 # Ungefaehre Downloadgroesse beim ersten Laden, nur fuer die Statuszeile
 MODEL_DOWNLOAD_SIZE = {"small": "500 MB", "medium": "1,5 GB", "large-v3-turbo": "1,6 GB"}
 WEB_DIR = pathlib.Path(__file__).resolve().parent / "web"
@@ -87,6 +95,9 @@ class Api:
     def file_button(self):
         self._app.file_button()
 
+    def open_log_folder(self):
+        self._app.open_log_folder()
+
 
 class App:
     def __init__(self):
@@ -107,8 +118,13 @@ class App:
         self.minimized = False
         self.file_job_running = False
         self.file_results = []
+        self.recording_status = ""
+        self.level_hint = None
 
     def run(self, guard=None):
+        log.info("Start Diktiertool %s (Python %s, %s), Modell %s, Sprache %s",
+                 config.VERSION, sys.version.split()[0], sys.platform,
+                 self.settings.get("model_size"), self.settings.get("language"))
         # ?v=<Version>: pywebviews eingebauter Server will Cache-Control:
         # no-cache setzen, bottle.static_file ueberschreibt den Header aber
         # wieder. Ohne ihn haelt WebView2 die zuletzt geladene Seite noch
@@ -207,7 +223,7 @@ class App:
         if key == "vocabulary":
             value = parse_vocabulary(value if isinstance(value, str) else "")
         elif key not in ("model_size", "language", "output_dir",
-                         "file_per_session", "punctuation_commands"):
+                         "file_per_session", "punctuation_commands", "keep_failed_audio"):
             return
         if key == "model_size" and (self.recording or self.file_job_running):
             # Der Dialog sperrt die Auswahl waehrend der Aufnahme ohnehin -
@@ -217,6 +233,16 @@ class App:
         self.settings.update(**{key: value})
         if key == "model_size":
             self.transcriber.reload_model()
+        if key == "keep_failed_audio" and value is False:
+            # Wer das Aufheben abschaltet, will auch die schon aufgehobenen
+            # Tonaufnahmen nicht mehr auf der Platte haben.
+            diagnostics.prune_failed_recordings(keep=0)
+        # Fuers Log nur, WAS sich geaendert hat - eigene Woerter und Ordnerpfade
+        # koennen schon zu viel verraten.
+        shown = {"vocabulary": f"{len(self.settings.get('vocabulary'))} Wörter",
+                 "output_dir": "eigener Ordner" if self.settings.get("output_dir") else "Standard",
+                 }.get(key, self.settings.get(key))
+        log.info("Einstellung %s = %s", key, shown)
         self._push_settings()
 
     def choose_output_dir(self):
@@ -290,6 +316,7 @@ class App:
             return
         self.file_job_running = True
         self._js("setFileJobState(true)")
+        log.info("Datei-Auftrag: %d Datei(en)", len(paths))
         self.transcriber.transcribe_files(paths, str(self.writer.output_dir()))
 
     def _on_file_message(self, msg):
@@ -344,17 +371,39 @@ class App:
 
         self.settings.update(device_name=self.device_names.get(device_label))
         self.recording = True
+        self.level_hint = None
         self._js("setRecordingState(true)")
-        self._set_status(warning or f"Nimmt auf... (→ {self.writer.path.name})")
+        self.recording_status = warning or f"Nimmt auf... (→ {self.writer.path.name})"
+        self._set_status(self.recording_status)
+        log.info("Aufnahme gestartet: %s", self.device_names.get(device_label) or STANDARD_LABEL)
 
     def _stop_recording(self):
         self.capture.stop()
         self.recording = False
         self._js("setRecordingState(false)")
         self._set_status("Bereit")
+        log.info("Aufnahme beendet")
+
+    def _update_level_hint(self):
+        """Hinweis, wenn vom Mikrofon nichts Brauchbares kommt - sonst wartet
+        man bei einem stummgeschalteten Mikrofon vergeblich auf Text."""
+        problem = self.capture.level_problem()
+        if problem == self.level_hint:
+            return
+        self.level_hint = problem
+        if problem is None:
+            self._set_status(self.recording_status)
+            return
+        log.warning("Pegel-Hinweis: %s", problem)
+        self._set_status(LEVEL_HINTS[problem])
 
     def open_output_folder(self):
-        folder = self.writer.output_dir()
+        self._open_folder(self.writer.output_dir())
+
+    def open_log_folder(self):
+        self._open_folder(diagnostics.LOG_DIR)
+
+    def _open_folder(self, folder):
         try:
             folder.mkdir(parents=True, exist_ok=True)
             if sys.platform == "win32":
@@ -365,6 +414,7 @@ class App:
             self._set_status(f"Ordner lässt sich nicht öffnen: {exc}")
 
     def _handle_error(self, message: str):
+        log.warning("Aufnahmefehler: %s", message)
         if self.recording:
             self.capture.stop()
             self.recording = False
@@ -403,6 +453,9 @@ class App:
                         self._set_status(f"Fehler: {model_error}")
                     elif msg["type"].startswith("file_"):
                         self._on_file_message(msg)
+                    elif msg["type"] == "recognition_error":
+                        self._set_status(f"Fehler bei der Erkennung ({msg['error']}) – "
+                                         f"Details im Log (Einstellungen → Log-Ordner öffnen)")
                     elif msg["type"] == "text":
                         self._append_text(msg["text"])
                         try:
@@ -422,6 +475,8 @@ class App:
 
             if self.recording and time.monotonic() - self.capture.last_callback_time > WATCHDOG_TIMEOUT_S:
                 self._handle_error("Kein Signal vom Mikrofon mehr - Verbindung verloren?")
+            if self.recording:
+                self._update_level_hint()
 
             self._js(f"setLevel({_level_to_meter(self.capture.get_level()) if self.recording else 0})")
 

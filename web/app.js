@@ -25,6 +25,8 @@ const punctuationCommands = document.getElementById("punctuationCommands");
 const vocabulary = document.getElementById("vocabulary");
 const settingsDone = document.getElementById("settingsDone");
 const fileButton = document.getElementById("fileButton");
+const keepFailedAudio = document.getElementById("keepFailedAudio");
+const logFolderButton = document.getElementById("logFolderButton");
 const card = document.querySelector(".card");
 
 const MODEL_HINT_DEFAULT = "Ein Wechsel lädt das Modell neu, beim ersten Mal mit Download.";
@@ -53,6 +55,9 @@ window.addEventListener("pywebviewready", () => {
   vocabulary.addEventListener("change", () => pywebview.api.update_setting("vocabulary", vocabulary.value));
   chooseDirButton.addEventListener("click", () => pywebview.api.choose_output_dir());
   fileButton.addEventListener("click", () => pywebview.api.file_button());
+  keepFailedAudio.addEventListener("change",
+    () => pywebview.api.update_setting("keep_failed_audio", keepFailedAudio.checked));
+  logFolderButton.addEventListener("click", () => pywebview.api.open_log_folder());
   resetDirButton.addEventListener("click", () => pywebview.api.reset_output_dir());
 });
 
@@ -93,6 +98,20 @@ document.addEventListener("drop", (e) => {
   card.classList.remove("drag-over");
   showSettings(false);
 });
+
+for (const tab of document.querySelectorAll(".tab")) {
+  tab.addEventListener("click", () => showTab(tab.dataset.tab));
+}
+
+function showTab(name) {
+  for (const tab of document.querySelectorAll(".tab")) {
+    tab.classList.toggle("active", tab.dataset.tab === name);
+    tab.setAttribute("aria-selected", tab.dataset.tab === name);
+  }
+  for (const panel of document.querySelectorAll(".tab-panel")) {
+    panel.hidden = panel.dataset.panel !== name;
+  }
+}
 
 settingsToggle.addEventListener("click", () => showSettings(settingsView.hidden));
 settingsDone.addEventListener("click", () => showSettings(false));
@@ -226,6 +245,7 @@ function setSettings(values) {
   languageSelect.value = values.language;
   filePerSession.checked = values.file_per_session;
   punctuationCommands.checked = values.punctuation_commands;
+  keepFailedAudio.checked = values.keep_failed_audio;
   // Nicht ueberschreiben, waehrend jemand darin tippt
   if (document.activeElement !== vocabulary) vocabulary.value = values.vocabulary.join("\n");
   outputDir.textContent = values.output_dir_display;

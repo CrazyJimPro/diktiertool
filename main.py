@@ -12,5 +12,9 @@ if __name__ == "__main__":
         else:
             print("Das Diktiertool läuft bereits, das Fenster ließ sich aber nicht nach vorne holen.")
     else:
+        # Log so frueh wie moeglich: auch ein Fehler beim Import von gui
+        # (fehlende DLL, kaputte Installation) soll dort landen.
+        import diagnostics
+        diagnostics.setup()
         from gui import main
         main(guard)

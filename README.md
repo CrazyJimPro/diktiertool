@@ -73,7 +73,8 @@ Spracherkennungsmodell erneut zu laden.
 
 Über "Apps & Features" (oder den Eintrag "Deinstallieren" im Startmenü). Entfernt den
 kompletten Programmordner samt portablem Python und Modell-Zwischenspeicher, außerdem die
-Einstellungen unter `%APPDATA%\Diktiertool`.
+Einstellungen unter `%APPDATA%\Diktiertool` und das Diagnose-Log unter
+`%LOCALAPPDATA%\Diktiertool\logs`.
 **Die Diktate unter `Dokumente\Diktiertool` (oder im selbst gewählten Ordner) bleiben
 erhalten.**
 
@@ -223,8 +224,10 @@ Während einer Transkription ist „Start“ gesperrt, während einer Aufnahme d
 
 ## Einstellungen
 
-Das Zahnrad oben rechts (neben dem Design-Knopf) öffnet die Einstellungen. Jede Änderung
-wird sofort gespeichert, „Fertig“ führt zurück zur Aufnahme.
+Das Zahnrad oben rechts (neben dem Design-Knopf) öffnet die Einstellungen. Sie sind auf
+Reiter verteilt: **Erkennung** (Modell, Sprache, eigene Wörter, Satzzeichen), **Ausgabe**
+(Ordner, eigene Datei pro Aufnahme) und **Diagnose**. Jede Änderung wird sofort
+gespeichert, „Fertig“ führt zurück zur Aufnahme.
 
 ### Spracherkennungsmodell wechseln
 
@@ -275,6 +278,28 @@ Namen und Fachbegriffe, die sonst falsch geschrieben werden: einen Begriff pro Z
 eintragen (Komma geht auch). Sie gelten ab dem nächsten Satz. Am besten wirken wenige
 gezielte Wörter, eine lange Liste verwässert den Effekt.
 
+### Diagnose
+
+Für die Fehlersuche, wenn Text fehlt oder falsch ankommt.
+
+- **Log-Ordner öffnen:** Das Tool schreibt ein Protokoll mit einer Zeile pro erkanntem
+  Stück: Dauer, Lautstärke, wie stark angehoben wurde, erkannte Sprache, Rechenzeit und
+  was aus welchem Grund verworfen wurde (z. B. ein erfundener Abspann-Satz). **Der
+  erkannte Text steht nie darin**, auch keine Dateinamen von Audiodateien. Das Protokoll
+  kann bei Problemen also gefahrlos weitergegeben werden. Es bleibt klein (höchstens
+  4 × 512 KB, ältere Teile werden überschrieben).
+- **Nicht erkannte Aufnahmen aufheben:** Ist der Haken gesetzt, landen Stücke, aus denen
+  kein Text wurde, als WAV im Unterordner `fehlaufnahmen` des Log-Ordners, nur die letzten 3.
+  Anhören zeigt schnell, ob das Mikrofon überhaupt etwas Brauchbares geliefert hat. Die
+  Vorgabe ist aus, denn es sind Tonaufnahmen. Haken wieder entfernen löscht sie.
+
+Wo das liegt:
+- Windows: `%LOCALAPPDATA%\Diktiertool\logs`
+- Linux: `~/.local/state/diktiertool/logs`
+
+Außerdem hebt das Tool leise Aufnahmen automatisch an, bevor sie erkannt werden (bis zum
+30-Fachen). Das hilft bei Mikrofonen mit zu niedrigem Pegel.
+
 ### Wo die Einstellungen gespeichert werden
 
 - Windows: `%APPDATA%\Diktiertool\settings.json`
@@ -301,6 +326,18 @@ es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie
 
 ## Wenn etwas nicht klappt
 
+- **Es nimmt auf, aber es erscheint kein Text:** Auf die Statuszeile achten. Nach acht
+  Sekunden ohne brauchbaren Ton erscheint dort ein Hinweis:
+  - „Kein Ton vom Mikrofon“: Das Mikrofon liefert völlige Stille. Meist ist es
+    stummgeschaltet, das falsche Gerät ist gewählt, oder Windows sperrt den Zugriff
+    (Einstellungen → Datenschutz und Sicherheit → Mikrofon → Desktop-Apps den Zugriff
+    erlauben).
+  - „Seit einigen Sekunden nichts zu hören“: Es kommt Ton, aber zu leise, um als Sprache
+    zu zählen. Wenn du gerade gar nicht sprichst, ist das normal. Sonst den Pegel erhöhen
+    (Windows: Rechtsklick aufs Lautsprechersymbol → Soundeinstellungen → Mikrofon →
+    Eingangslautstärke) oder näher ans Mikrofon gehen.
+- **Für die Fehlersuche:** Einstellungen → Diagnose → „Log-Ordner öffnen“. Die Datei
+  `diktiertool.log` enthält keinen erkannten Text und kann weitergegeben werden.
 - **Das falsche Mikrofon ist vorgewählt:** einfach in der Liste umstellen, beim nächsten
   „Start“ merkt sich das Tool die neue Wahl.
 - **Das Tool startet nicht mehr, nachdem an der Einstellungsdatei herumgebastelt wurde:**

@@ -38,6 +38,9 @@ DEFAULTS = {
     "output_dir": None,
     "file_per_session": False,
     "vocabulary": [],
+    # Haeppchen ohne erkannten Text als WAV in den Log-Ordner (diagnostics.py).
+    # Vorgabe aus: es sind Tonaufnahmen, die sollen nur auf Wunsch liegen bleiben.
+    "keep_failed_audio": False,
 }
 
 
@@ -51,7 +54,7 @@ def _is_valid(key, value) -> bool:
         return value in LANGUAGE_CHOICES
     if key in ("device_name", "output_dir"):
         return value is None or (isinstance(value, str) and value != "")
-    if key in ("punctuation_commands", "file_per_session"):
+    if key in ("punctuation_commands", "file_per_session", "keep_failed_audio"):
         return isinstance(value, bool)
     if key == "vocabulary":
         return isinstance(value, list) and all(isinstance(w, str) for w in value)
