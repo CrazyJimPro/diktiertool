@@ -34,6 +34,15 @@ const logFolderButton = document.getElementById("logFolderButton");
 const card = document.querySelector(".card");
 
 const MODEL_HINT_DEFAULT = "Ein Wechsel lädt das Modell neu, beim ersten Mal mit Download.";
+// CC-BY-4.0 verlangt die Namensnennung - hier steht sie dort, wo man das
+// Modell auswaehlt.
+const MODEL_HINT_PARAKEET = "Nur Deutsch, setzt Satzzeichen selbst. Sprache und eigene Wörter gelten hier " +
+  "nicht. Beim ersten Mal ca. 640 MB Download. Modell: primeline (Fine-Tune) auf Basis von NVIDIA " +
+  "parakeet-tdt-0.6b-v3, Lizenz CC-BY-4.0.";
+
+function defaultModelHint() {
+  return modelSelect.value === "parakeet-de" ? MODEL_HINT_PARAKEET : MODEL_HINT_DEFAULT;
+}
 let modelReady = false;
 let isRecording = false;
 let fileJobRunning = false;
@@ -236,7 +245,7 @@ function setModelLoading() {
 function setModelReady() {
   modelReady = true;
   modelFailed = false;
-  modelHint.textContent = MODEL_HINT_DEFAULT;
+  modelHint.textContent = defaultModelHint();
   updateControls();
 }
 
@@ -270,6 +279,11 @@ function setSettings(values) {
   outputDir.textContent = values.output_dir_display;
   outputDir.title = values.output_dir_display;
   resetDirButton.hidden = values.output_dir_is_default;
+  // Parakeet kann nur Deutsch und kennt keine eigenen Woerter
+  const parakeet = values.model_size === "parakeet-de";
+  languageSelect.disabled = parakeet;
+  vocabulary.disabled = parakeet;
+  if (modelReady) modelHint.textContent = defaultModelHint();
 }
 
 function setLevel(fraction) {

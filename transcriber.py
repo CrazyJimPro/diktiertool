@@ -37,6 +37,7 @@ from faster_whisper import WhisperModel
 import audio_file
 from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS, SAMPLE_RATE
 from diagnostics import log, normalize_gain, save_failed_recording
+from settings import PARAKEET
 from text_postprocess import apply_voice_commands, filter_segments
 
 
@@ -78,9 +79,13 @@ class Transcriber(threading.Thread):
         gc.collect()
         started = time.monotonic()
         try:
-            self.model = WhisperModel(
-                size, device="cpu", compute_type=COMPUTE_TYPE, cpu_threads=CPU_THREADS
-            )
+            if size == PARAKEET:
+                from parakeet_engine import ParakeetEngine  # zieht sherpa-onnx erst jetzt nach
+                self.model = ParakeetEngine(CPU_THREADS)
+            else:
+                self.model = WhisperModel(
+                    size, device="cpu", compute_type=COMPUTE_TYPE, cpu_threads=CPU_THREADS
+                )
         except Exception as exc:  # Download abgebrochen, kein Netz, Platte voll ...
             log.error("Modell %s ließ sich nicht laden: %s", size, exc)
             self.result_q.put({"type": "model_error", "model": size, "error": str(exc)})
@@ -121,9 +126,14 @@ class Transcriber(threading.Thread):
         (Whisper-Segmente zusaetzlich die Werte, nach denen filter_segments
         aussortiert). Eine zweite Engine (Fahrplan M6: Parakeet) haengt sich
         hier ein, der Rest des Transcribers bleibt dann unveraendert."""
+        audio, gain = normalize_gain(audio)
+        if self.loaded_size == PARAKEET:
+            # Parakeet kann nur Deutsch und kennt keine eigenen Woerter - der
+            # Dialog graut beides aus, solange es gewaehlt ist.
+            return Recognition(self.model.transcribe(audio), len(audio) / SAMPLE_RATE,
+                               "de", None, gain)
         language = self.settings.get("language")
         hotwords = ", ".join(self.settings.get("vocabulary")) or None
-        audio, gain = normalize_gain(audio)
         # vad_filter=True (onnxruntime-basiert) bewusst deaktiviert: das startet
         # einen zweiten, unabhaengigen nativen Thread-Pool neben dem von
         # ctranslate2 und hat reproduzierbar zu Abstuerzen gefuehrt (Race

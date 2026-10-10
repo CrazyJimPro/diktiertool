@@ -9,3 +9,7 @@ pywebview>=6.0,<7.0
 # diese Datei: unter Linux zieht pynput evdev nach, das kompiliert werden
 # muesste - setup.sh installiert es dort ohne diese Abhaengigkeit.
 pynput>=1.7,<2; sys_platform == "win32"
+# Zweite Engine Parakeet (parakeet_engine.py) - wird erst geladen, wenn sie in
+# den Einstellungen gewaehlt ist; bringt ihre eigene onnxruntime.dll mit.
+# Getestet mit 1.13.x.
+sherpa-onnx>=1.12,<1.14

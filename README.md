@@ -277,12 +277,36 @@ zurück zur Aufnahme.
    - **small:** schnell, die Vorgabe. Reicht für deutliches Diktieren meist aus.
    - **medium:** genauer, braucht aber spürbar länger, bis der Text erscheint.
    - **large-v3-turbo:** am genauesten, braucht am meisten Arbeitsspeicher (rund 2 GB frei).
+   - **Parakeet (nur Deutsch):** eine andere Erkennung, siehe unten. Sehr schnell.
 2. Das Modell lädt sofort neu. Beim ersten Mal wird es heruntergeladen (medium ca. 1,5 GB,
-   large-v3-turbo ca. 1,6 GB), das kann einige Minuten dauern. Bis dahin ist „Start“
-   gesperrt.
+   large-v3-turbo ca. 1,6 GB, Parakeet ca. 640 MB), das kann einige Minuten dauern. Bis
+   dahin ist „Start“ gesperrt.
 3. Danach steht in der Statuszeile „Bereit (Modell …)“.
 
-Während einer Aufnahme lässt sich das Modell nicht wechseln, erst nach „Stop“.
+Während einer Aufnahme oder Transkription lässt sich das Modell nicht wechseln, erst
+danach.
+
+### Parakeet statt Whisper
+
+Die Modelle small, medium und large-v3-turbo sind alle „Whisper“ von OpenAI. Parakeet ist
+eine ganz andere Spracherkennung, ein auf Deutsch trainiertes Modell.
+
+- **Vorteile:** etwa fünfmal schneller als Whisper small (ein Satz in unter einer
+  halben Sekunde, eine Stunde Audio in wenigen Minuten). Bei Stille oder Rauschen erfindet
+  es keine Sätze. Satzzeichen und Großschreibung setzt es selbst.
+- **Einschränkungen:** nur Deutsch. „Sprache“ und „Eigene Wörter“ gelten nicht und sind
+  ausgegraut, solange Parakeet gewählt ist. Braucht etwas mehr Arbeitsspeicher (rund 1 GB,
+  bei Audiodateien kurzzeitig mehr).
+- Am besten einfach ausprobieren: Zwischen Whisper und Parakeet lässt sich jederzeit hin-
+  und herschalten.
+
+Parakeet stammt von [primeline/parakeet-primeline](https://huggingface.co/primeline/parakeet-primeline)
+(deutscher Fine-Tune von primeline) auf Basis von NVIDIAs
+[parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), hier in der
+ONNX-Fassung [flozen1981/parakeet-primeline-onnx](https://huggingface.co/flozen1981/parakeet-primeline-onnx).
+Lizenz: [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/). Ausgeführt wird es mit
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx). Die Idee, Parakeet so einzubinden,
+stammt aus [winidi/dictate](https://github.com/winidi/dictate).
 
 ### Sprache
 

@@ -24,7 +24,8 @@ def _settings_file() -> Path:
 
 SETTINGS_FILE = _settings_file()
 
-MODEL_CHOICES = ("small", "medium", "large-v3-turbo")
+PARAKEET = "parakeet-de"   # zweite Engine, siehe parakeet_engine.py
+MODEL_CHOICES = ("small", "medium", "large-v3-turbo", PARAKEET)
 LANGUAGE_CHOICES = ("de", "en", "auto")
 
 DEFAULTS = {

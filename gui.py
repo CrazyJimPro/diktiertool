@@ -33,7 +33,8 @@ LEVEL_HINTS = {
              "zu leise (Pegel in den Sound-Einstellungen erhöhen oder näher heran).",
 }
 # Ungefaehre Downloadgroesse beim ersten Laden, nur fuer die Statuszeile
-MODEL_DOWNLOAD_SIZE = {"small": "500 MB", "medium": "1,5 GB", "large-v3-turbo": "1,6 GB"}
+MODEL_DOWNLOAD_SIZE = {"small": "500 MB", "medium": "1,5 GB", "large-v3-turbo": "1,6 GB",
+                       "parakeet-de": "640 MB"}
 WEB_DIR = pathlib.Path(__file__).resolve().parent / "web"
 
 # Lineares RMS*SCALE reagiert sehr empfindlich auf die Eingangsempfindlichkeit

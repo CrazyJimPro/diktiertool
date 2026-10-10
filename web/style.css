@@ -517,6 +517,7 @@ body.glass .tab.active { background: rgba(255, 255, 255, 0.18); }
   resize: vertical;
 }
 .vocabulary::placeholder { color: var(--text-secondary); }
+.vocabulary:disabled { opacity: 0.55; cursor: not-allowed; }
 .vocabulary:focus, .device-select:focus-visible {
   outline: 2px solid var(--terracotta-2);
   outline-offset: 1px;
