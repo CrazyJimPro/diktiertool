@@ -287,6 +287,9 @@ es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie
 
 ## Bekannte Eigenheiten
 
+- Das Tool läuft immer nur einmal. Ein weiterer Start (z. B. ein zweiter Doppelklick auf
+  das Symbol) öffnet kein zweites Fenster, sondern holt das vorhandene nach vorne, auch
+  wenn es minimiert war.
 - Text erscheint satzweise mit ein paar Sekunden Verzögerung (Sprechpause + Rechenzeit),
   nicht Wort-für-Wort live. Das ist eine bewusste Entscheidung für bessere Genauigkeit.
 - Bricht die Mikrofon-Verbindung mitten in der Aufnahme ab (z.B. Bluetooth getrennt), zeigt

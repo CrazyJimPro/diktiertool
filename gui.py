@@ -100,18 +100,46 @@ class App:
         self.device_map = {}
         self.device_names = {}
         self.window = None
+        self.minimized = False
 
-    def run(self):
+    def run(self, guard=None):
         self.window = webview.create_window(
             "Diktiertool", url=str(WEB_DIR / "index.html"), width=680, height=780,
             js_api=Api(self),
         )
         self.window.events.loaded += self._on_page_loaded
         self.window.events.closing += self._on_close
+        self.window.events.minimized += self._on_minimized
+        self.window.events.restored += self._on_restored
+        self.window.events.maximized += self._on_restored
+        if guard is not None:
+            guard.listen(self._bring_to_front)
         # private_mode=True ist pywebviews Default und deaktiviert auf GTK
         # HTML5-localStorage komplett (ephemeral WebContext) - ohne dies wird
         # die Theme-Wahl (localStorage) bei jedem Neustart verworfen.
         webview.start(private_mode=False)
+
+    def _on_minimized(self):
+        self.minimized = True
+
+    def _on_restored(self):
+        self.minimized = False
+
+    def _bring_to_front(self):
+        """Eine zweite Instanz wurde gestartet und hat sich hier gemeldet."""
+        try:
+            # restore() nur bei minimiertem Fenster - bei einem maximierten
+            # wuerde es die Maximierung aufheben.
+            if self.minimized:
+                self.window.restore()
+            self.window.show()  # unter Windows inkl. Activate()
+            # Falls Windows das Aktivieren trotzdem verweigert (dann blinkt nur
+            # der Taskleisten-Knopf): kurz "immer im Vordergrund" schaltet das
+            # Fenster wenigstens sichtbar ueber alle anderen.
+            self.window.on_top = True
+            self.window.on_top = False
+        except Exception:
+            pass  # Fenster noch nicht fertig oder schon am Schliessen
 
     def _js(self, code: str):
         try:
@@ -305,8 +333,8 @@ class App:
         os._exit(0)
 
 
-def main():
-    App().run()
+def main(guard=None):
+    App().run(guard)
 
 
 if __name__ == "__main__":
