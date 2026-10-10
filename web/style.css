@@ -485,3 +485,32 @@ body.glass .device-select {
   gap: 12px;
   margin-top: 2px;
 }
+
+/* Audiodatei uebers Fenster gezogen (app.js setzt .drag-over) */
+.card.drag-over::after {
+  content: "Audiodatei loslassen zum Transkribieren";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  border-radius: inherit;
+  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  outline: 3px dashed var(--terracotta);
+  outline-offset: -16px;
+  color: var(--terracotta);
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 21px;
+  pointer-events: none;
+}
+/* Unter Glass ist --surface fast durchsichtig - dort ein dunkler Schleier */
+body.glass .card.drag-over::after {
+  background: rgba(30, 27, 75, 0.82);
+}

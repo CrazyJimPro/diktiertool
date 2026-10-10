@@ -190,6 +190,36 @@ bleibt ausschließlich auf diesem Rechner. Ordner und Aufteilung lassen sich in 
 - **Ordner öffnen:** öffnet den Ordner, in dem `diktat.txt` liegt (unter Windows
   `Dokumente\Diktiertool`, unter Linux den Projektordner – oder den in den Einstellungen
   gewählten).
+- **Audiodatei …:** transkribiert eine fertige Aufnahme, siehe nächster Abschnitt.
+
+## Audiodateien transkribieren
+
+Für Sprachnachrichten, Diktiergerät-Aufnahmen oder Mitschnitte, die schon als Datei
+vorliegen. Unterstützt werden mp3, m4a, wav, ogg, opus, flac, aac, wma sowie der Ton aus
+mp4- und webm-Videos.
+
+1. Auf **„Audiodatei …“** klicken und eine oder mehrere Dateien auswählen. Alternativ die
+   Dateien einfach aus dem Explorer ins Fenster ziehen. Das Fenster zeigt dann „Audiodatei
+   loslassen zum Transkribieren“.
+2. Die Statuszeile zeigt den Fortschritt in Prozent. Der erkannte Text erscheint
+   absatzweise im Fenster. Eine Stunde Aufnahme braucht mit dem Modell small je nach
+   Rechner etwa 5 bis 15 Minuten, mit medium oder large-v3-turbo deutlich länger.
+3. Das Ergebnis landet als Textdatei **neben der Audiodatei**: aus `Sprachnachricht.m4a`
+   wird `Sprachnachricht.txt`. Gibt es die schon, heißt die neue
+   `Sprachnachricht (2).txt`, überschrieben wird nie etwas. Lässt sich neben der Audiodatei
+   nicht schreiben (z. B. CD oder schreibgeschützter Ordner), landet sie im Ausgabeordner.
+4. Fertig steht in der Statuszeile, wo die Datei gespeichert ist.
+
+Ein neuer Absatz beginnt nach einer Sprechpause von zwei Sekunden oder bei gesprochenem
+„neuer Absatz“. Sprache, eigene Wörter und Satzzeichen per Sprache aus den
+Einstellungen gelten auch hier.
+
+**Abbrechen:** Während der Transkription heißt der Knopf „Abbrechen“. Der bis dahin
+erkannte Text bleibt in der Datei erhalten, am Ende steht „--- abgebrochen bei … % ---“.
+Bei mehreren Dateien werden die restlichen übersprungen.
+
+Während einer Transkription ist „Start“ gesperrt, während einer Aufnahme der Knopf
+„Audiodatei …“. Beides gleichzeitig geht nicht.
 
 ## Einstellungen
 
@@ -282,6 +312,13 @@ es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie
 - **Der Text landet nicht im gewählten Ordner:** Die Statuszeile nennt beim Start den
   Grund und den Ordner, in den stattdessen geschrieben wird. Ordner in den Einstellungen
   neu wählen.
+- **„keine lesbare Audiodatei“:** Die Datei ist keine Audiodatei, beschädigt oder ein
+  Format mit Kopierschutz (z. B. gekaufte Hörbücher). In einem anderen Programm
+  abspielbar? Dann als mp3 oder wav exportieren und die exportierte Datei nehmen.
+- **Die Transkription einer Datei zieht sich:** Lange Aufnahmen brauchen Zeit, die
+  Prozentanzeige läuft dabei weiter. Das kleinere Modell (small) ist deutlich schneller.
+- **Bei langen Stillen in einer Aufnahme erscheinen erfundene Sätze:** Siehe
+  „Bekannte Eigenheiten“ unten. Die bekannten filtert das Tool heraus.
 - **„Kopieren“ tut scheinbar nichts:** Der Knopf ist gesperrt, solange im Fenster kein Text
   steht. Nach dem Klick zeigt er kurz „Kopiert ✓“.
 

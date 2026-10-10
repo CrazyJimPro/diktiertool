@@ -1,4 +1,7 @@
 faster-whisper>=1.2.0,<2.0
+# Audiodateien einlesen (audio_file.py) - kommt ohnehin mit faster-whisper,
+# hier aber direkt benutzt; getestet mit 19.x
+av>=11,<20
 sounddevice>=0.5.0,<0.6
 numpy>=1.26,<3.0
 pywebview>=6.0,<7.0

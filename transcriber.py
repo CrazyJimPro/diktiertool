@@ -29,7 +29,8 @@ if _MODEL_CACHE.is_dir():
 
 from faster_whisper import WhisperModel
 
-from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS
+import audio_file
+from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS, SAMPLE_RATE
 from text_postprocess import apply_voice_commands, filter_segments
 
 
@@ -52,6 +53,8 @@ class Transcriber(threading.Thread):
         self.stop_event = stop_event
         self.settings = settings
         self.control_q: queue.Queue = queue.Queue()
+        self.file_q: queue.Queue = queue.Queue()
+        self.cancel_event = threading.Event()
         self.model = None
         self.loaded_size = None
 
@@ -92,6 +95,23 @@ class Transcriber(threading.Thread):
             self.settings.update(model_size=fallback)
             self._load(fallback)
 
+    def transcribe_files(self, paths: list[str], fallback_dir: str):
+        """Aus dem GUI-Thread aufrufbar: Audiodateien nacheinander
+        transkribieren. Ein Aufruf ist ein Auftrag; cancel_files() bricht den
+        ganzen Auftrag ab, nicht nur die aktuelle Datei."""
+        self.cancel_event.clear()
+        self.file_q.put({"paths": list(paths), "fallback_dir": fallback_dir})
+
+    def cancel_files(self):
+        self.cancel_event.set()
+
+    def _options(self) -> dict:
+        language = self.settings.get("language")
+        return {
+            "language": None if language == "auto" else language,
+            "hotwords": ", ".join(self.settings.get("vocabulary")) or None,
+        }
+
     def run(self):
         self._load_with_fallback(previous=None)
 
@@ -106,6 +126,14 @@ class Transcriber(threading.Thread):
                 self._load_with_fallback(previous=self.loaded_size)
 
             try:
+                job = self.file_q.get_nowait()
+            except queue.Empty:
+                pass
+            else:
+                self._run_file_job(job)
+                continue
+
+            try:
                 chunk = self.audio_q.get(timeout=0.2)
             except queue.Empty:
                 continue
@@ -118,18 +146,129 @@ class Transcriber(threading.Thread):
             # Condition beim Freigeben von JIT-Code, siehe Core-Dump-Analyse).
             # Die eigene Lautstaerke-basierte Pausenerkennung in audio_capture.py
             # uebernimmt die Sprache/Stille-Trennung bereits vorher.
-            language = self.settings.get("language")
-            hotwords = ", ".join(self.settings.get("vocabulary")) or None
+            options = self._options()
             segments, _ = self.model.transcribe(
                 chunk,
-                language=None if language == "auto" else language,
                 condition_on_previous_text=False,
                 vad_filter=False,
-                hotwords=hotwords,
+                **options,
             )
             text = apply_voice_commands(
-                filter_segments(segments, hotwords=hotwords),
+                filter_segments(segments, hotwords=options["hotwords"]),
                 punctuation=self.settings.get("punctuation_commands"),
             )
             if text is not None:
                 self.result_q.put({"type": "text", "text": text})
+
+    def _run_file_job(self, job: dict):
+        paths = job["paths"]
+        for index, path in enumerate(paths, start=1):
+            if self.cancel_event.is_set() or self.stop_event.is_set():
+                break
+            self._transcribe_file(Path(path), Path(job["fallback_dir"]), index, len(paths))
+        self.result_q.put({"type": "file_job_done", "cancelled": self.cancel_event.is_set()})
+
+    def _transcribe_file(self, path: Path, fallback_dir: Path, index: int, total: int):
+        info = {"name": path.name, "index": index, "total": total}
+        done = {"type": "file_done", **info, "out_path": None, "error": None, "cancelled": False}
+        self.result_q.put({"type": "file_progress", **info, "phase": "decode", "percent": 0})
+        if self.model is None:
+            self.result_q.put({**done, "error": "kein Spracherkennungsmodell geladen"})
+            return
+        try:
+            audio = audio_file.decode(path, SAMPLE_RATE, cancel=self.cancel_event)
+            if audio is None:
+                self.result_q.put({**done, "cancelled": True})
+                return
+            out_path = audio_file.result_path(path, fallback_dir)
+        except audio_file.AudioFileError as exc:
+            self.result_q.put({**done, "error": str(exc)})
+            return
+
+        self.result_q.put({"type": "file_text", "text": f"— {path.name} —"})
+        options = self._options()
+        punctuation = self.settings.get("punctuation_commands")
+        # Siehe run(): auch hier kein vad_filter. Bei laengeren Pausen in
+        # Aufnahmen erfindet Whisper dann gelegentlich Saetze - die bekannten
+        # faengt filter_segments ab.
+        segments, transcription_info = self.model.transcribe(
+            audio, condition_on_previous_text=False, vad_filter=False, **options,
+        )
+        duration = transcription_info.duration or 1.0
+        paragraphs = Paragraphs(lambda text: self._emit_paragraph(out_path, text))
+        last_percent = 0
+        try:
+            for segment in segments:
+                if self.cancel_event.is_set() or self.stop_event.is_set():
+                    done["cancelled"] = True
+                    break
+                text = apply_voice_commands(
+                    filter_segments([segment], hotwords=options["hotwords"]),
+                    punctuation=punctuation,
+                )
+                if text is not None:
+                    paragraphs.add(segment.start, segment.end, text)
+                percent = min(99, int(segment.end / duration * 100))
+                if percent != last_percent:
+                    last_percent = percent
+                    self.result_q.put({"type": "file_progress", **info, "phase": "transcribe",
+                                       "percent": percent})
+            paragraphs.flush()
+            if done["cancelled"]:
+                self._append(out_path, f"--- abgebrochen bei {last_percent} % ---\n")
+        except OSError as exc:
+            self.result_q.put({**done, "error": f"Ergebnis ließ sich nicht schreiben ({exc})"})
+            return
+        finally:
+            del audio
+            gc.collect()
+        self.result_q.put({**done, "out_path": str(out_path)})
+
+    def _emit_paragraph(self, out_path: Path, text: str):
+        # Sofort schreiben statt erst am Ende: bricht das Programm bei einer
+        # stundenlangen Datei ab, ist alles bis dahin Erkannte schon gesichert.
+        self._append(out_path, text + "\n\n")
+        self.result_q.put({"type": "file_text", "text": text})
+
+    @staticmethod
+    def _append(path: Path, text: str):
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+
+
+class Paragraphs:
+    """Fuegt Segmente einer Audiodatei zu Absaetzen zusammen. Live landet jedes
+    Haeppchen in einer eigenen Zeile - eine Datei ergaebe so hunderte
+    Einzeiler. Hier beginnt ein neuer Absatz nach einer Sprechpause oder wenn
+    der Absatz zu lang wird (sonst erschiene bei pausenlosem Sprechen lange gar
+    nichts im Fenster)."""
+
+    PAUSE_S = 2.0
+    MAX_CHARS = 700
+
+    def __init__(self, emit):
+        self._emit = emit
+        self._parts: list[str] = []
+        self._length = 0
+        self._last_end = None
+
+    def add(self, start: float, end: float, text: str):
+        if self._parts and (start - self._last_end >= self.PAUSE_S or self._length >= self.MAX_CHARS):
+            self.flush()
+        self._last_end = end
+        if text == "":
+            self.flush()  # Segment bestand nur aus "neuer Absatz"
+            return
+        self._parts.append(text)
+        self._length += len(text) + 1
+
+    def flush(self):
+        if self._parts:
+            # Ein "neuer Absatz" mitten im Segment kommt als \n\n an - die
+            # Leerzeichen drumherum vom Zusammenfuegen fallen weg.
+            text = " ".join(self._parts).replace(" \n", "\n").replace("\n ", "\n")
+            self._emit(text)
+        self._parts = []
+        self._length = 0

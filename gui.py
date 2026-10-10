@@ -15,6 +15,7 @@ import webview
 import config
 from update_check import REPO, get_latest_version, is_newer
 from audio_capture import AudioCapture, list_input_devices
+from audio_file import AUDIO_EXTENSIONS
 from transcriber import Transcriber
 from file_writer import DEFAULT_OUTPUT_DIR, FileWriter
 from settings import Settings, parse_vocabulary
@@ -83,6 +84,9 @@ class Api:
     def reset_output_dir(self):
         self._app.update_setting("output_dir", None)
 
+    def file_button(self):
+        self._app.file_button()
+
 
 class App:
     def __init__(self):
@@ -101,6 +105,8 @@ class App:
         self.device_names = {}
         self.window = None
         self.minimized = False
+        self.file_job_running = False
+        self.file_results = []
 
     def run(self, guard=None):
         # ?v=<Version>: pywebviews eingebauter Server will Cache-Control:
@@ -160,6 +166,7 @@ class App:
                   f"{json.dumps(f'https://github.com/{REPO}/releases')})")
         self.refresh_devices()
         self._push_settings()
+        self._register_drop()
         self.transcriber.start()
 
         threading.Thread(target=self._check_for_update, daemon=True).start()
@@ -202,7 +209,7 @@ class App:
         elif key not in ("model_size", "language", "output_dir",
                          "file_per_session", "punctuation_commands"):
             return
-        if key == "model_size" and self.recording:
+        if key == "model_size" and (self.recording or self.file_job_running):
             # Der Dialog sperrt die Auswahl waehrend der Aufnahme ohnehin -
             # das hier ist nur die Absicherung dahinter.
             self._push_settings()
@@ -233,8 +240,92 @@ class App:
     def toggle_recording(self, device_label=None):
         if self.recording:
             self._stop_recording()
-        else:
+        elif not self.file_job_running:  # Knopf ist dann ohnehin gesperrt
             self._start_recording(device_label)
+
+    # --- Audiodateien -------------------------------------------------------
+
+    def _register_drop(self):
+        # Den vollen Pfad einer ins Fenster gezogenen Datei verraet der Browser
+        # aus Sicherheitsgruenden nicht - pywebview reicht ihn nur an
+        # Python-seitige DOM-Handler weiter (pywebviewFullPath). Das Hervorheben
+        # beim Darueberziehen und preventDefault fuer dragover macht app.js.
+        try:
+            from webview.dom import DOMEventHandler
+            self.window.dom.document.events.drop += DOMEventHandler(self._on_drop, True, True)
+        except Exception as exc:  # aeltere pywebview-Version o. ae. - Knopf geht trotzdem
+            print(f"Drag & Drop nicht verfügbar: {exc}")
+
+    def _on_drop(self, event):
+        files = (event.get("dataTransfer") or {}).get("files") or []
+        paths = [f["pywebviewFullPath"] for f in files if f.get("pywebviewFullPath")]
+        if not paths:
+            self._set_status("Nur Dateien lassen sich hier ablegen.")
+            return
+        self.start_file_job(paths)
+
+    def file_button(self):
+        """Knopf "Audiodatei ...": waehrend eines Auftrags bricht er ihn ab."""
+        if self.file_job_running:
+            self.transcriber.cancel_files()
+            self._set_status("Breche ab ...")
+            return
+        patterns = ";".join(f"*{ext}" for ext in AUDIO_EXTENSIONS)
+        result = self.window.create_file_dialog(
+            webview.FileDialog.OPEN, allow_multiple=True,
+            file_types=(f"Audiodateien ({patterns})", "Alle Dateien (*.*)"),
+        )
+        if result:
+            self.start_file_job(list(result) if isinstance(result, (list, tuple)) else [result])
+
+    def start_file_job(self, paths):
+        if self.recording:
+            self._set_status("Erst die Aufnahme beenden, dann eine Audiodatei transkribieren.")
+            return
+        if self.file_job_running:
+            self._set_status("Es läuft schon eine Transkription – erst abwarten oder abbrechen.")
+            return
+        if self.transcriber.loaded_size is None:
+            self._set_status("Das Spracherkennungsmodell lädt noch – bitte kurz warten.")
+            return
+        self.file_job_running = True
+        self._js("setFileJobState(true)")
+        self.transcriber.transcribe_files(paths, str(self.writer.output_dir()))
+
+    def _on_file_message(self, msg):
+        kind = msg["type"]
+        of = f" ({msg['index']}/{msg['total']})" if msg.get("total", 1) > 1 else ""
+        if kind == "file_progress":
+            if msg["phase"] == "decode":
+                self._set_status(f"Lese {msg['name']}{of} ...")
+            else:
+                self._set_status(f"Transkribiere {msg['name']}{of}: {msg['percent']} %")
+        elif kind == "file_text":
+            self._append_text(msg["text"])
+        elif kind == "file_done":
+            if msg["error"]:
+                self.file_results.append((False, f"{msg['name']}: {msg['error']}"))
+            elif msg["out_path"]:
+                suffix = " (abgebrochen)" if msg["cancelled"] else ""
+                self.file_results.append((True, f"gespeichert als {msg['out_path']}{suffix}"))
+        elif kind == "file_job_done":
+            self.file_job_running = False
+            self._js("setFileJobState(false)")
+            results, self.file_results = self.file_results, []
+            prefix = "Abgebrochen" if msg["cancelled"] else "Fertig"
+            failed = sum(1 for ok, _ in results if not ok)
+            if len(results) == 1:
+                ok, line = results[0]
+                self._set_status(f"{prefix} – {line}" if ok else f"Fehler – {line}")
+            elif results:
+                summary = f"{len(results) - failed} von {len(results)} Dateien transkribiert"
+                if failed:
+                    summary += f", {failed} mit Fehler"
+                self._set_status(f"{prefix} – {summary} (Details im Fenster)")
+                for _, line in results:
+                    self._append_text("→ " + line)
+            else:
+                self._set_status(prefix)
 
     def _start_recording(self, device_label):
         self.capture.device = self.device_map.get(device_label)
@@ -310,6 +401,8 @@ class App:
                                        f"({msg['error']})")
                         self._js(f"setModelError({json.dumps(model_error)})")
                         self._set_status(f"Fehler: {model_error}")
+                    elif msg["type"].startswith("file_"):
+                        self._on_file_message(msg)
                     elif msg["type"] == "text":
                         self._append_text(msg["text"])
                         try:

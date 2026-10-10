@@ -24,10 +24,13 @@ const filePerSession = document.getElementById("filePerSession");
 const punctuationCommands = document.getElementById("punctuationCommands");
 const vocabulary = document.getElementById("vocabulary");
 const settingsDone = document.getElementById("settingsDone");
+const fileButton = document.getElementById("fileButton");
+const card = document.querySelector(".card");
 
 const MODEL_HINT_DEFAULT = "Ein Wechsel lädt das Modell neu, beim ersten Mal mit Download.";
 let modelReady = false;
 let isRecording = false;
+let fileJobRunning = false;
 
 // Genau die Zeilen, wie sie auch in die Datei geschrieben werden - Kopieren
 // soll nicht von der Darstellung im DOM abhaengen.
@@ -49,6 +52,7 @@ window.addEventListener("pywebviewready", () => {
   // jedem Tastendruck, aber spaetestens beim Klick auf "Fertig".
   vocabulary.addEventListener("change", () => pywebview.api.update_setting("vocabulary", vocabulary.value));
   chooseDirButton.addEventListener("click", () => pywebview.api.choose_output_dir());
+  fileButton.addEventListener("click", () => pywebview.api.file_button());
   resetDirButton.addEventListener("click", () => pywebview.api.reset_output_dir());
 });
 
@@ -58,6 +62,37 @@ function showSettings(open) {
   settingsToggle.classList.toggle("active", open);
   settingsToggle.setAttribute("aria-label", open ? "Einstellungen schließen" : "Einstellungen öffnen");
 }
+
+// Drag & Drop: hier nur Hervorheben und preventDefault (ohne das laesst der
+// Browser gar nicht erst ablegen, sondern oeffnet die Datei selbst). Den
+// eigentlichen Drop mit vollem Dateipfad bekommt Python (gui.py _on_drop).
+// dragenter/dragleave feuern auch beim Wechsel zwischen Kindelementen -
+// deshalb mitzaehlen statt bei jedem dragleave die Hervorhebung zu entfernen.
+let dragDepth = 0;
+function isFileDrag(e) {
+  return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+}
+document.addEventListener("dragenter", (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  card.classList.add("drag-over");
+});
+document.addEventListener("dragover", (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+});
+document.addEventListener("dragleave", () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) card.classList.remove("drag-over");
+});
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  card.classList.remove("drag-over");
+  showSettings(false);
+});
 
 settingsToggle.addEventListener("click", () => showSettings(settingsView.hidden));
 settingsDone.addEventListener("click", () => showSettings(false));
@@ -138,28 +173,52 @@ function setStatus(text) {
   status.textContent = text;
 }
 
+let modelFailed = false;
+
+// Ein Ort fuer alle Sperren - Aufnahme, Modell laden und Audiodatei schliessen
+// sich gegenseitig aus, und jede der set...-Funktionen unten aendert nur
+// ihren Teil des Zustands.
+function updateControls() {
+  startButton.disabled = !modelReady || fileJobRunning;
+  // Modellwechsel mitten in Aufnahme oder Datei wuerde die Erkennung fuer die
+  // Dauer des Ladens anhalten - Sprache, Woerter und Satzzeichen dagegen
+  // wirken sofort ab dem naechsten Haeppchen und bleiben frei. Nach einem
+  // gescheiterten Laden (ohne Rueckfall) muss die Auswahl frei werden, sonst
+  // gaebe es keinen Weg mehr, es erneut oder mit einem anderen zu versuchen.
+  modelSelect.disabled = isRecording || fileJobRunning || (!modelReady && !modelFailed);
+  // Waehrend eines Auftrags wird der Knopf zum Abbrechen-Knopf
+  fileButton.disabled = !fileJobRunning && (!modelReady || isRecording);
+  fileButton.textContent = fileJobRunning ? "Abbrechen" : "Audiodatei …";
+  deviceSelect.disabled = isRecording;
+  refreshButton.disabled = isRecording;
+}
+
 function setModelLoading() {
   modelReady = false;
-  startButton.disabled = true;
-  modelSelect.disabled = true;
+  modelFailed = false;
   modelHint.textContent = "Modell wird geladen … beim ersten Mal mit Download, das kann einige Minuten dauern.";
+  updateControls();
 }
 
 function setModelReady() {
   modelReady = true;
-  startButton.disabled = false;
-  modelSelect.disabled = isRecording;
+  modelFailed = false;
   modelHint.textContent = MODEL_HINT_DEFAULT;
+  updateControls();
 }
 
-// Folgt kein Rueckfall auf ein anderes Modell (das kaeme als setModelLoading
-// gleich hinterher), muss die Auswahl frei werden - sonst gaebe es keinen Weg
-// mehr, es mit einem anderen Modell oder spaeter erneut zu versuchen.
+// Folgt ein Rueckfall auf ein anderes Modell, kommt gleich setModelLoading
+// hinterher und sperrt die Auswahl wieder.
 function setModelError(message) {
   modelReady = false;
-  startButton.disabled = true;
-  modelSelect.disabled = isRecording;
+  modelFailed = true;
   modelHint.textContent = message;
+  updateControls();
+}
+
+function setFileJobState(running) {
+  fileJobRunning = running;
+  updateControls();
 }
 
 function setSettings(values) {
@@ -190,14 +249,9 @@ function appendText(text) {
 
 function setRecordingState(recording) {
   isRecording = recording;
-  // Modellwechsel mitten in der Aufnahme wuerde die Erkennung fuer die Dauer
-  // des Ladens anhalten - Sprache, Woerter und Satzzeichen dagegen wirken
-  // sofort ab dem naechsten Haeppchen und bleiben frei.
-  modelSelect.disabled = isRecording || !modelReady;
   startButton.textContent = isRecording ? "Stop" : "Start";
   startButton.classList.toggle("recording", isRecording);
-  deviceSelect.disabled = isRecording;
-  refreshButton.disabled = isRecording;
+  updateControls();
 }
 
 function setDeviceList(labels, selected) {
