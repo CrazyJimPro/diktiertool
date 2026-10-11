@@ -54,6 +54,8 @@ let transcript = [];
 window.addEventListener("pywebviewready", () => {
   startButton.addEventListener("click", () => pywebview.api.toggle_recording(deviceSelect.value));
   refreshButton.addEventListener("click", () => pywebview.api.refresh_devices(deviceSelect.value));
+  // Python merkt sich die Auswahl, damit die Taste nicht erst nachfragen muss
+  deviceSelect.addEventListener("change", () => pywebview.api.select_device(deviceSelect.value));
   versionLabel.addEventListener("click", () => pywebview.api.open_url(versionLabel.dataset.url));
   updateBadge.addEventListener("click", () => pywebview.api.open_url(updateBadge.dataset.url));
   folderButton.addEventListener("click", () => pywebview.api.open_output_folder());

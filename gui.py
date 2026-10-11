@@ -103,6 +103,9 @@ class Api:
     def set_window_focus(self, focused):
         self._app.window_focused = bool(focused)
 
+    def select_device(self, label):
+        self._app.select_device(label)
+
 
 class App:
     def __init__(self):
@@ -126,6 +129,7 @@ class App:
         self.recording_status = ""
         self.level_hint = None
 
+        self.selected_device_label = None  # Auswahl im Fenster - die Taste braucht sie sofort
         self.hotkey_listener = None
         self.hotkey_hold_active = False   # Aufnahme laeuft, weil die Taste gehalten wird
         self.window_focused = True        # von app.js gemeldet (nur ausserhalb Windows benutzt)
@@ -222,6 +226,7 @@ class App:
                 (label for label, name in self.device_names.items() if saved and name == saved),
                 labels[0],
             )
+        self.selected_device_label = selected
         self._js(f"setDeviceList({json.dumps(labels)}, {json.dumps(selected)})")
 
     def _push_settings(self):
@@ -328,19 +333,26 @@ class App:
         self.hotkey_hold_active = False
 
     def _hotkey_start(self):
-        try:
-            device_label = self.window.evaluate_js("deviceSelect.value")
-        except Exception:
-            device_label = None
-        # Ton zuerst, Aufnahme danach - sonst landet der Piepton im ersten Haeppchen
-        if self.settings.get("beep"):
-            keyboard_control.beep(start=True)
-        self._start_recording(device_label)
+        # Erst piepen, wenn der erste Audioblock wirklich da ist (unter Windows
+        # 0,1-0,25 s nach dem Druecken, mit Bluetooth deutlich mehr): der Ton
+        # heisst "laeuft". Frueher kam er vor dem Oeffnen des Mikrofons - wer
+        # gleich danach losredete, sprach in eine noch geschlossene Aufnahme,
+        # und der Satzanfang fehlte. Den Ton selbst blendet die Aufnahme aus.
+        def ready_signal():  # im Audio-Thread - nur Thread starten
+            # +0,12 s: Lautsprecher geben den Ton mit etwas Verzoegerung aus -
+            # ein mit aufgenommener Piep wuerde sonst als Haeppchen erkannt
+            self.capture.ignore_for(keyboard_control.BEEP_S + 0.12)
+            threading.Thread(target=keyboard_control.beep, args=(True,), daemon=True).start()
+        self._start_recording(self.selected_device_label,
+                              on_audio_started=ready_signal if self.settings.get("beep") else None)
 
     def _hotkey_stop(self):
         self._stop_recording()
         if self.settings.get("beep"):
-            keyboard_control.beep(start=False)
+            threading.Thread(target=keyboard_control.beep, args=(False,), daemon=True).start()
+
+    def select_device(self, label):
+        self.selected_device_label = label
 
     def _own_window_focused(self) -> bool:
         if sys.platform == "win32":
@@ -443,10 +455,11 @@ class App:
             else:
                 self._set_status(prefix)
 
-    def _start_recording(self, device_label):
+    def _start_recording(self, device_label, on_audio_started=None):
+        self.selected_device_label = device_label
         self.capture.device = self.device_map.get(device_label)
         try:
-            self.capture.start()
+            self.capture.start(on_first_block=on_audio_started)
         except sd.PortAudioError as exc:
             self._set_status(f"Fehler: Gerät nicht verfügbar ({exc})")
             return

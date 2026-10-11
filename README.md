@@ -246,9 +246,11 @@ ein, wo gerade der Cursor steht: in Word, im Browser, in einer Mail.
 
 1. Das Diktiertool läuft im Hintergrund (es darf minimiert sein).
 2. Im Zielprogramm an die Stelle klicken, an die der Text soll.
-3. Taste drücken (bzw. halten). Mit eingeschaltetem Signalton piept es hoch.
-4. Sprechen. Der Text erscheint satzweise am Cursor, außerdem wie gewohnt im Fenster und
-   in der Datei.
+3. Taste drücken (bzw. halten). Mit eingeschaltetem Signalton piept es hoch, und zwar
+   genau dann, wenn das Mikrofon wirklich aufnimmt (je nach Gerät 0,1 bis 0,3 Sekunden
+   nach dem Drücken, bei Bluetooth-Headsets auch länger).
+4. Nach dem Piep sprechen. Der Text erscheint satzweise am Cursor, außerdem wie gewohnt im
+   Fenster und in der Datei. Ohne Signalton kurz nach dem Drücken mit dem Sprechen warten.
 5. Taste nochmal drücken (bzw. loslassen). Es piept tiefer.
 
 Gut zu wissen:

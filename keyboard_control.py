@@ -176,17 +176,20 @@ def own_window_has_focus_win32() -> bool:
     return pid.value == os.getpid()
 
 
+BEEP_S = 0.11
+
+
 def beep(start: bool):
-    """Kurzer Signalton - hoch beim Start, tiefer beim Stopp. Blockiert ~0,1 s."""
+    """Kurzer Signalton - hoch beim Start, tiefer beim Stopp. Blockiert BEEP_S."""
     try:
         if sys.platform == "win32":
             import winsound
-            winsound.Beep(880 if start else 587, 110)
+            winsound.Beep(880 if start else 587, int(BEEP_S * 1000))
         else:
             import numpy as np
             import sounddevice as sd
             rate = 44100
-            t = np.arange(int(rate * 0.11)) / rate
+            t = np.arange(int(rate * BEEP_S)) / rate
             tone = 0.25 * np.sin(2 * np.pi * (880 if start else 587) * t)
             sd.play(tone.astype("float32"), rate, blocking=True)
     except Exception as exc:  # kein Ausgabegeraet o. ae. - dann eben ohne Ton

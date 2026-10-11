@@ -2,6 +2,7 @@ import queue
 import sys
 import threading
 import time
+from collections import deque
 
 import numpy as np
 import sounddevice as sd
@@ -16,6 +17,7 @@ from config import (
     MIN_CHUNK_DURATION_MS,
     MUTE_THRESHOLD_RMS,
     LEVEL_HINT_AFTER_S,
+    PRE_ROLL_MS,
 )
 
 
@@ -96,8 +98,17 @@ class AudioCapture:
 
         self._chunk_blocks = []
         self._chunk_duration_s = 0.0
+        self._preroll_s = 0.0
         self._silence_ms = 0.0
         self._in_speech = False
+        # Die letzten Bloecke VOR dem ersten lauten - Anlaute wie "s", "f",
+        # "h" liegen oft unter der Sprachschwelle und fehlten sonst am Anfang
+        # jedes Haeppchens.
+        self._pre_roll = deque(maxlen=max(1, round(PRE_ROLL_MS / 1000 * SAMPLE_RATE / BLOCKSIZE)))
+        # Bis hierhin (time.monotonic) Bloecke verwerfen - fuer den Signalton,
+        # der sonst selbst mit aufgenommen wuerde
+        self._ignore_until = 0.0
+        self._on_first_block = None
 
         self._level_lock = threading.Lock()
         self._level = 0.0
@@ -119,6 +130,11 @@ class AudioCapture:
             return "leise"
         return None
 
+    def ignore_for(self, seconds: float):
+        """Die naechsten `seconds` nichts aufnehmen (Signalton ueber die Lautsprecher)."""
+        self._ignore_until = time.monotonic() + seconds
+        self._pre_roll.clear()
+
     def get_level(self) -> float:
         with self._level_lock:
             return self._level
@@ -132,10 +148,13 @@ class AudioCapture:
     def _finalize_chunk(self):
         if not self._chunk_blocks:
             return
-        duration_ms = self._chunk_duration_s * 1000
+        # Der Vorlauf zaehlt fuer die Mindestlaenge nicht mit - sonst kaeme
+        # jedes Klicken (50 ms laut + 400 ms Vorlauf) als Haeppchen durch.
+        duration_ms = (self._chunk_duration_s - self._preroll_s) * 1000
         chunk = np.concatenate(self._chunk_blocks)
         self._chunk_blocks = []
         self._chunk_duration_s = 0.0
+        self._preroll_s = 0.0
         self._silence_ms = 0.0
         self._in_speech = False
 
@@ -152,6 +171,14 @@ class AudioCapture:
         # zuverlaessiger ueber den Watchdog (keine Callbacks mehr) oder
         # finished_callback erkannt.
         self.last_callback_time = time.monotonic()
+        if self._on_first_block is not None:
+            # Erst jetzt fliesst wirklich Ton - stream.start() kehrt schon
+            # 0,1-0,2 s vorher zurueck. Der Aufrufer darf hier nichts
+            # Langsames tun (Echtzeit-Thread).
+            callback, self._on_first_block = self._on_first_block, None
+            callback()
+        if self.last_callback_time < self._ignore_until:
+            return
 
         mono = indata[:, 0] if indata.ndim > 1 else indata
         rms = float(np.sqrt(np.mean(np.square(mono))))
@@ -165,11 +192,18 @@ class AudioCapture:
         block_duration_s = frames / SAMPLE_RATE
 
         if rms > SILENCE_THRESHOLD_RMS:
+            if not self._in_speech and self._pre_roll:
+                self._chunk_blocks.extend(self._pre_roll)
+                self._preroll_s = len(self._pre_roll) * block_duration_s
+                self._chunk_duration_s += self._preroll_s
+                self._pre_roll.clear()
             self._in_speech = True
             self._silence_ms = 0.0
             self._chunk_blocks.append(mono.copy())
             self._chunk_duration_s += block_duration_s
-        elif self._in_speech:
+        elif not self._in_speech:
+            self._pre_roll.append(mono.copy())
+        else:
             self._chunk_blocks.append(mono.copy())
             self._chunk_duration_s += block_duration_s
             self._silence_ms += block_duration_s * 1000
@@ -184,8 +218,11 @@ class AudioCapture:
         if not self._stopping:
             self._push_error("Audio-Stream unerwartet beendet (Gerät getrennt?)")
 
-    def start(self):
+    def start(self, on_first_block=None):
+        """on_first_block: wird einmal aufgerufen, sobald der erste Audioblock
+        ankommt (im Audio-Thread - nur Schnelles, z. B. einen Thread starten)."""
         self._stopping = False
+        self._on_first_block = on_first_block
         try:
             self.stream = sd.InputStream(
                 samplerate=SAMPLE_RATE,
@@ -200,6 +237,8 @@ class AudioCapture:
             self.last_callback_time = time.monotonic()
             self._last_sound_time = self.last_callback_time
             self._last_speech_time = self.last_callback_time
+            self._pre_roll.clear()
+            self._ignore_until = 0.0
             self.stream.start()
         except sd.PortAudioError as exc:
             self.stream = None
