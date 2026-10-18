@@ -180,6 +180,20 @@ Datum/Uhrzeit-Trenner. Diese Datei ist bewusst nicht Teil von Git (`.gitignore`)
 bleibt ausschließlich auf diesem Rechner. Ordner und Aufteilung lassen sich in den
 [Einstellungen](#einstellungen) ändern.
 
+## Deinstallation
+
+```
+./uninstall.sh
+```
+
+Beendet ein laufendes Diktiertool, entfernt Menü-/Desktop-Verknüpfung, Einstellungen
+(`~/.config/diktiertool`), Diagnose-Log (`~/.local/state/diktiertool`) und die
+heruntergeladenen Spracherkennungsmodelle (Whisper- und Parakeet-Anteil im geteilten
+`~/.cache/huggingface`, dort gezielt per Namensmuster statt den ganzen Cache-Ordner zu
+leeren). Zeigt am Ende den Befehl, um danach auch noch den Projektordner samt virtueller
+Umgebung zu löschen (`rm -rf ...`) – das kann das Skript nicht selbst, solange es darin
+noch läuft. Diktate bleiben in jedem Fall erhalten.
+
 ---
 
 # Für beide Plattformen
