@@ -169,7 +169,8 @@ git pull
 `./setup.sh` danach nicht weglassen, auch wenn es manchmal nur `git pull` bräuchte – es
 prüft zusätzlich auf neue System-Pakete/Abhängigkeiten und richtet sie bei Bedarf ein, ist
 aber schnell durchgelaufen, wenn sich nichts geändert hat. Zeigt es fehlende Pakete an, den
-vorgeschlagenen `sudo apt install ...`-Befehl ausführen und `./setup.sh` erneut starten.
+vorgeschlagenen `sudo apt update && sudo apt install ...`-Befehl ausführen und `./setup.sh`
+erneut starten.
 Danach wie gewohnt `./start.sh` oder über die Desktop-Verknüpfung starten.
 
 ## Ausgabe

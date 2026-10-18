@@ -22,7 +22,7 @@ fi
 if [ -n "$MISSING" ]; then
     echo "Folgende System-Pakete fehlen (keine pip-Pakete, muessen einmalig per apt installiert werden):"
     echo ""
-    echo "    sudo apt install ${MISSING}"
+    echo "    sudo apt update && sudo apt install ${MISSING}"
     echo ""
     echo "Danach setup.sh erneut ausfuehren."
     exit 1
