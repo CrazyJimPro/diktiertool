@@ -55,9 +55,26 @@ class Segment:
 def ensure_model() -> str:
     """Pfad zum Modellordner; laedt beim ersten Mal herunter (~640 MB) - in
     denselben Zwischenspeicher wie die Whisper-Modelle (unter Windows der
-    model-cache-Ordner der Installation, siehe transcriber.py)."""
+    model-cache-Ordner der Installation, siehe transcriber.py).
+
+    local_dir statt des normalen HF-Cache: sonst liegen encoder.int8.onnx und
+    seine externen Gewichte (encoder.int8.onnx.data) nur als Symlinks auf
+    getrennt gehashte Blobs - onnxruntimes Pfadpruefung fuer externe Daten
+    lehnt das dann als "external data path escapes model directory" ab, weil
+    beide Symlinks in unterschiedlichen Blob-Ordnern aufgeloest werden
+    (beobachtet unter Linux). Mit local_dir landen echte Dateien/Hardlinks
+    im selben Ordner, die Pruefung findet beide dort."""
+    import os
+    from pathlib import Path
     from huggingface_hub import snapshot_download
-    return snapshot_download(MODEL_REPO, revision=MODEL_REVISION, allow_patterns=MODEL_FILES)
+
+    base = Path(os.environ.get("HF_HOME", str(Path.home() / ".cache" / "huggingface")))
+    target = base / "parakeet-primeline-onnx"
+    snapshot_download(
+        MODEL_REPO, revision=MODEL_REVISION, allow_patterns=MODEL_FILES,
+        local_dir=target,
+    )
+    return str(target)
 
 
 class ParakeetEngine:
