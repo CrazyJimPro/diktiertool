@@ -19,6 +19,7 @@ class FileWriter:
     def __init__(self, settings):
         self.settings = settings
         self.path: Path | None = None
+        self._line_has_text = False
 
     def output_dir(self) -> Path:
         custom = self.settings.get("output_dir")
@@ -50,6 +51,7 @@ class FileWriter:
         # den es beim allerersten Start noch nicht gibt.
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
+        self._line_has_text = False  # die letzte Zeile ist gleich die Kopfzeile
         # Eine eigene Datei pro Aufnahme traegt Datum und Uhrzeit schon im
         # Namen. Nur wenn zwei Aufnahmen in dieselbe Minute fallen, landet die
         # zweite mit Trenner in derselben Datei.
@@ -58,8 +60,29 @@ class FileWriter:
         self._append(header)
 
     def write(self, text: str):
-        if self.path is not None:
+        if self.path is None:
+            return
+        if text[:1] in ".,;:!?" and text and self._line_has_text:
+            # Ein allein gesagtes "Komma"/"Punkt" gehoert ans Ende der vorigen
+            # Zeile statt in eine eigene - also deren Zeilenumbruch ersetzen.
+            self._replace_last_newline(text + "\n")
+        else:
             self._append(text + "\n")
+        self._line_has_text = bool(text.strip()) and not text.endswith("\n")
+
+    def _replace_last_newline(self, text: str):
+        # Binaer, weil man im Textmodus nicht rueckwaerts springen kann. _append
+        # schreibt im Textmodus - unter Windows also \r\n, das hier genauso.
+        with open(self.path, "r+b") as f:
+            end = f.seek(0, os.SEEK_END)
+            f.seek(max(0, end - 2))
+            tail = f.read()
+            cut = 2 if tail.endswith(b"\r\n") else 1 if tail.endswith(b"\n") else 0
+            f.seek(end - cut)
+            f.write(text.replace("\n", os.linesep).encode("utf-8"))
+            f.truncate()
+            f.flush()
+            os.fsync(f.fileno())
 
     def _append(self, text: str):
         with open(self.path, "a", encoding="utf-8") as f:

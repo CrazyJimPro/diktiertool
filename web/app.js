@@ -294,6 +294,13 @@ function setLevel(fraction) {
 
 function appendText(text) {
   placeholder.remove();
+  // Ein allein gesagtes "Komma"/"Punkt" kommt ans Ende des vorigen Satzes
+  const last = textOutput.lastElementChild;
+  if (/^[.,;:!?]/.test(text) && transcript.length && transcript[transcript.length - 1] && last) {
+    transcript[transcript.length - 1] += text;
+    last.textContent += text;
+    return;
+  }
   transcript.push(text);
   const p = document.createElement("p");
   p.textContent = text;

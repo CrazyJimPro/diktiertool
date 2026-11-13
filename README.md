@@ -141,7 +141,8 @@ eine ganz andere Spracherkennung, ein auf Deutsch trainiertes Modell.
 
 - **Vorteile:** etwa fünfmal schneller als Whisper small (ein Satz in unter einer
   halben Sekunde, eine Stunde Audio in wenigen Minuten). Bei Stille oder Rauschen erfindet
-  es keine Sätze. Satzzeichen und Großschreibung setzt es selbst.
+  es keine Sätze. Satzzeichen und Großschreibung setzt es selbst (außer mit Haken bei
+  [„Satzzeichen nur per Sprache“](#satzzeichen-per-sprache)).
 - **Einschränkungen:** nur Deutsch. „Sprache“ und „Eigene Wörter“ gelten nicht und sind
   ausgegraut, solange Parakeet gewählt ist. Braucht etwas mehr Arbeitsspeicher (rund 1 GB,
   bei Audiodateien kurzzeitig mehr).
@@ -182,9 +183,23 @@ schreiben. Welche Datei gerade beschrieben wird, steht beim Start in der Statusz
 
 ### Satzzeichen per Sprache
 
-Ist der Haken gesetzt, werden „Komma“, „Punkt“, „Fragezeichen“, „Ausrufezeichen“ und
-„Doppelpunkt“ zum jeweiligen Zeichen. Vorgabe ist aus: Die Erkennung setzt Satzzeichen
-ohnehin selbst, und „der Punkt ist …“ würde sonst zu „der. Ist …“.
+Du hast die Wahl zwischen zwei Arten:
+
+- **Ohne Haken (Vorgabe):** Die Erkennung setzt Punkt, Komma und Co. selbst. Das klappt
+  meist gut, an Sprechpausen landet aber gern auch mitten im Satz ein Punkt.
+- **Mit Haken bei „Satzzeichen nur per Sprache“:** Die Erkennung setzt keine eigenen
+  Punkte, Frage- und Ausrufezeichen, Doppelpunkte und Semikolons mehr. Es erscheinen nur
+  noch die, die du sagst: „Punkt“, „Fragezeichen“, „Ausrufezeichen“, „Doppelpunkt“ und
+  „Komma“. Nach „Punkt“, „Fragezeichen“ und „Ausrufezeichen“ geht es mit einem
+  Großbuchstaben weiter, auch wenn du dazwischen eine Pause machst. Zahlen wie „1.000“
+  oder „14:30“ bleiben erhalten.
+- **Kommas** setzt die Erkennung in beiden Fällen weiter selbst. Parakeet macht aus einem
+  gesagten „Komma“ schon von sich aus ein Komma und setzt dazu eigene, etwa vor „dass“ –
+  beides sieht im Ergebnis gleich aus und lässt sich nicht auseinanderhalten.
+
+Der Haken gilt für beide Modelle (Whisper und Parakeet) und auch für Audiodateien. Ein
+Nachteil: „der Punkt ist …“ wird zu „der. Ist …“ – das Wort selbst lässt sich
+dann nicht mehr diktieren.
 
 ### Eigene Wörter
 
@@ -229,7 +244,8 @@ Beim Diktieren einfach mitsprechen:
 | „neue Zeile“ | Zeilenumbruch |
 
 Satzzeichen per Sprache („Komma“, „Punkt“ …) sind ausgeschaltet und lassen sich in den
-[Einstellungen](#satzzeichen-per-sprache) einschalten.
+[Einstellungen](#satzzeichen-per-sprache) einschalten – dann setzt die Erkennung keine
+eigenen mehr.
 
 ## Zuletzt benutztes Mikrofon
 

@@ -106,13 +106,40 @@ def _apply_punctuation_commands(text: str) -> str:
     return result
 
 
+def continue_sentence(previous: str | None, text: str) -> str:
+    """Endete das vorige Haeppchen mit einem Satzende (z. B. ein allein
+    gesprochenes "Punkt"), beginnt dieses gross."""
+    if previous and previous.rstrip()[-1:] in (".", "!", "?") and text[:1].islower():
+        return text[0].upper() + text[1:]
+    return text
+
+
+# Satzzeichen, die die Erkennung selbst setzt. Zwischen zwei Ziffern bleiben sie
+# stehen ("1.000", "14:30"). Kommas bleiben immer: Parakeet macht aus einem
+# gesagten "Komma" selbst schon ein "," (das Wort kommt nie an) - von seinen
+# eigenen Kommas ist das nicht zu unterscheiden. Gesagte "Punkt", "Fragezeichen"
+# und "Ausrufezeichen" kommen dagegen als Wort an (mit Hedda-TTS geprueft).
+_AUTO_PUNCT_RE = re.compile(r"(?<!\d)[.;:!?…]+|[.;:!?…]+(?!\d)")
+PUNCTUATION_CHARS = ".,;:!?"
+
+
+def strip_auto_punctuation(text: str) -> str:
+    """Entfernt die Satzzeichen der Erkennung ausser Kommas. Parakeet und
+    Whisper setzen gern an jede Sprechpause einen Punkt - wer sie selbst
+    diktiert, bekaeme sonst doppelte."""
+    text = _AUTO_PUNCT_RE.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", text).strip(" \t")
+
+
 def apply_voice_commands(text: str, punctuation: bool = False) -> str | None:
     """Setzt gesprochene Befehle um. Jedes Haeppchen landet ohnehin in einer
     eigenen Zeile - ein Umbruch am Anfang oder Ende eines Haeppchens ist also
     schon da und wird nicht doppelt gesetzt. Rueckgabe "" steht fuer eine
-    Leerzeile ("Neuer Absatz" allein), None fuer "nichts ausgeben"."""
+    Leerzeile ("Neuer Absatz" allein), None fuer "nichts ausgeben".
+    punctuation=True heisst: Satzzeichen NUR per Sprache - die der Erkennung
+    fallen weg, "Komma", "Punkt" ... werden zum Zeichen."""
     if punctuation:
-        text = _apply_punctuation_commands(text)
+        text = _apply_punctuation_commands(strip_auto_punctuation(text))
     text = _PARAGRAPH_RE.sub("\n\n", text)
     text = _LINE_RE.sub("\n", text)
 

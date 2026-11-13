@@ -150,7 +150,8 @@ class TextTyper:
                 continue
             # "" heisst: das Haeppchen bestand nur aus "neuer Absatz"
             out = text if text else "\n\n"
-            if not self._at_line_start and not out.startswith("\n"):
+            # Ein allein gesagtes "Komma"/"Punkt" kommt direkt ans vorige Wort
+            if not self._at_line_start and not out.startswith(("\n", *".,;:!?")):
                 out = " " + out
             try:
                 if self._controller is None:
