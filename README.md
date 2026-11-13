@@ -312,6 +312,10 @@ es beim nächsten Start wieder vor. Ist es gerade nicht angeschlossen, steht wie
   wenn es minimiert war.
 - Text erscheint satzweise mit ein paar Sekunden Verzögerung (Sprechpause + Rechenzeit),
   nicht Wort-für-Wort live. Das ist eine bewusste Entscheidung für bessere Genauigkeit.
+- Mit „Satzzeichen nur per Sprache“ bleibt nach einer Denkpause manchmal ein Wort groß,
+  das das Tool noch nicht als klein kennt (z. B. „Mach“, „Danke“, „Egal“). Solche Wörter
+  lassen sich in die Liste in `text_postprocess.py` (`_LOWERCASE_WORDS`) aufnehmen, siehe
+  [Satzzeichen per Sprache](#satzzeichen-per-sprache).
 - Bricht die Mikrofon-Verbindung mitten in der Aufnahme ab (z.B. Bluetooth getrennt), zeigt
   das Tool eine Fehlermeldung und stoppt sauber. Es verbindet sich nicht automatisch neu –
   Gerät neu auswählen und "Start" erneut drücken.
