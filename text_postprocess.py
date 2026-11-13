@@ -94,24 +94,125 @@ _PUNCTUATION_RE = re.compile(
 )
 
 
+# Steht ein Artikel davor ("einen Punkt", "kein Fragezeichen", "der Punkt ist"),
+# ist das Wort gemeint und kein Befehl.
+_ARTICLE_BEFORE_RE = re.compile(
+    r"\b(ein|einen|einem|eines|kein|keinen|keinem|keines|der|den|dem|des|das|"
+    r"dieser|diesen|diesem|dieses|jeder|jeden|jedem|welcher|welchen|welchem|zwei|drei|vier)"
+    r"[\s,]*$",
+    re.IGNORECASE,
+)
+
+
 def _apply_punctuation_commands(text: str) -> str:
-    # split() mit Gruppe liefert [Text, Befehl, Text, Befehl, Text ...]
-    parts = _PUNCTUATION_RE.split(text)
-    result = parts[0]
-    for command, rest in zip(parts[1::2], parts[2::2]):
-        char = _PUNCTUATION_COMMANDS[command.lower()]
-        if char in ".!?" and rest:
-            rest = rest[0].upper() + rest[1:]
-        result += char + (" " if rest else "") + rest
-    return result
+    result = ""
+    pos = 0
+    capitalize = False
+    for match in _PUNCTUATION_RE.finditer(text):
+        if _ARTICLE_BEFORE_RE.search(text[:match.start()]):
+            continue  # bleibt als Wort stehen
+        before = text[pos:match.start()]
+        if capitalize and before:
+            before = before[0].upper() + before[1:]
+        char = _PUNCTUATION_COMMANDS[match.group(1).lower()]
+        result += before + char
+        pos = match.end()
+        if pos < len(text):
+            result += " "
+        capitalize = char in ".!?"
+    rest = text[pos:]
+    if capitalize and rest:
+        rest = rest[0].upper() + rest[1:]
+    return result + rest
 
 
-def continue_sentence(previous: str | None, text: str) -> str:
-    """Endete das vorige Haeppchen mit einem Satzende (z. B. ein allein
-    gesprochenes "Punkt"), beginnt dieses gross."""
-    if previous and previous.rstrip()[-1:] in (".", "!", "?") and text[:1].islower():
-        return text[0].upper() + text[1:]
-    return text
+# Woerter, die mitten im Satz klein geschrieben werden. Die Erkennung bekommt
+# jedes Haeppchen (bis zur naechsten Sprechpause) einzeln und haelt es fuer einen
+# neuen Satz - also schreibt sie das erste Wort gross, auch wenn nur kurz
+# ueberlegt wurde. Bewusst ohne "sie/ihr/ihnen" (Anrede "Sie") und ohne Woerter,
+# die oft auch Hauptwort sind ("morgen", "essen"). Hauptwoerter kommen hier nie
+# vor - die bleiben gross.
+_LOWERCASE_WORDS = frozenset("""
+der die das den dem des ein eine einen einem einer eines kein keine keinen keinem keiner keines
+dieser diese dieses diesen diesem jeder jede jedes jeden jedem mein meine meinen meinem meiner
+dein deine deinen deinem deiner sein seine seinen seinem seiner unser unsere unseren euer eure
+welche welcher welches welchen welchem manche alle alles beide viele wenige einige mehrere
+ich du er es wir mich mir dich dir ihn ihm uns euch sich man jemand niemand nichts etwas
+was wer wen wem wo wie warum wieso weshalb wann woher wohin womit wofür worüber woran dass
+und oder aber denn sondern weil da wenn falls ob obwohl obgleich als bevor nachdem während damit
+sodass bis seit seitdem sobald solange indem ohne um statt sowie also dann daher deshalb deswegen
+trotzdem jedoch doch sonst außerdem zwar entweder weder noch
+in im ins an am ans auf aus bei beim mit nach von vom vor zu zum zur über unter neben zwischen
+durch für gegen hinter wegen trotz
+nicht auch nur schon jetzt gerade eben hier dort immer nie oft manchmal mal einfach halt ja nein
+so sehr ganz gar wohl vielleicht eigentlich bitte genau selbst selber sogar erst bereits wieder
+gleich heute gestern bald später vorher nachher hoffentlich leider natürlich klar okay irgendwie
+irgendwo irgendwann etwa ungefähr fast kaum mehr weniger besser lieber gern gerne zuerst danach
+dafür dagegen darauf darum davon dazu dabei dadurch daran darin weiter allerdings zusammen allein
+ist sind war waren bin bist hat habe hast haben hatte hatten wird werden wurde würde würden
+kann kannst können konnte könnte muss musst müssen sollte soll sollen will willst wollen möchte
+möchtest darf dürfen mache machen macht gemacht sage sagen sagt gesagt gehe geht gehen gibt geben
+gegeben sehe siehst sieht sehen gesehen schau schauen weiß wissen glaube glauben denke denken
+meinst finde finden brauche brauchst braucht brauchen lass lassen komme kommt kommen warte
+warten schreibe schreiben schreibt geschrieben setzt setzen gesetzt erwähne erwähnen überlegen
+groß gross klein gut schlecht neu alt richtig falsch kurz lang schnell langsam wichtig schwer
+leicht willkürlich automatisch selbstständig selbständig
+""".split())
+# Diese nie dazulernen - "Sie" als Anrede bleibt gross
+_NEVER_LOWERCASE = frozenset("sie ihr ihre ihren ihrem ihrer ihres ihnen".split())
+_WORD_RE = re.compile(r"[^\W\d_]+")
+
+
+class SentenceCase:
+    """Gross- und Kleinschreibung ueber Haeppchen hinweg, fuer "Satzzeichen nur
+    per Sprache": Nur nach einem gesagten Punkt, Frage- oder Ausrufezeichen
+    (oder am Anfang) geht es gross weiter. Sonst wird das erste Wort klein,
+    wenn es kein Hauptwort ist - erkennbar an der Liste oben oder daran, dass
+    die Erkennung es mitten im Satz schon einmal klein geschrieben hat."""
+
+    def __init__(self):
+        self.previous: str | None = None
+        self._learned: set[str] = set()
+        self._seen_capital: set[str] = set()
+
+    def reset(self):
+        """Neue Aufnahme: das erste Haeppchen beginnt einen Satz."""
+        self.previous = None
+
+    def observe(self, raw: str):
+        """Lernt aus dem unbearbeiteten Text der Erkennung, welche Woerter sie
+        mitten im Satz klein schreibt (erstes Wort und Satzanfaenge zaehlen nicht)."""
+        for match in _WORD_RE.finditer(raw):
+            before = raw[:match.start()].rstrip()
+            if not before or before[-1] in ".!?:\n":
+                continue
+            word = match.group()
+            key = word.casefold()
+            if word[0].islower():
+                if key not in _NEVER_LOWERCASE:
+                    self._learned.add(key)
+            else:
+                self._seen_capital.add(key)
+
+    def apply(self, text: str) -> str:
+        self.previous = text = self._apply(self.previous, text)
+        return text
+
+    def _apply(self, previous: str | None, text: str) -> str:
+        if not previous or previous.endswith("\n"):
+            return text  # Satzanfang - so lassen, wie die Erkennung es schreibt
+        if previous.rstrip()[-1:] in (".", "!", "?"):
+            return text[0].upper() + text[1:] if text[:1].islower() else text
+        match = _WORD_RE.match(text)
+        if not match:
+            return text  # beginnt z. B. mit einem allein gesagten "Komma"
+        word = match.group()
+        key = word.casefold()
+        if word[0].isupper() and not word.isupper() and (
+            key in _LOWERCASE_WORDS or (key in self._learned and key not in self._seen_capital)
+        ):
+            return word[0].lower() + text[1:]
+        return text
 
 
 # Satzzeichen, die die Erkennung selbst setzt. Zwischen zwei Ziffern bleiben sie

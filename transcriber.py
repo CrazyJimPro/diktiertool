@@ -38,7 +38,7 @@ import audio_file
 from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS, SAMPLE_RATE
 from diagnostics import log, normalize_gain, save_failed_recording
 from settings import PARAKEET
-from text_postprocess import PUNCTUATION_CHARS, apply_voice_commands, continue_sentence, filter_segments
+from text_postprocess import PUNCTUATION_CHARS, SentenceCase, apply_voice_commands, filter_segments
 
 
 class Transcriber(threading.Thread):
@@ -64,7 +64,13 @@ class Transcriber(threading.Thread):
         self.cancel_event = threading.Event()
         self.model = None
         self.loaded_size = None
-        self._last_live_text = None
+        # Gelerntes (welche Woerter klein sind) bleibt bis zum Beenden erhalten,
+        # new_session() setzt nur den Satzanfang zurueck.
+        self.sentence_case = SentenceCase()
+
+    def new_session(self):
+        """Beim Start einer Aufnahme: das erste Haeppchen beginnt einen Satz."""
+        self.sentence_case.reset()
 
     def reload_model(self):
         """Aus dem GUI-Thread aufrufbar: laedt das in den Einstellungen
@@ -189,14 +195,13 @@ class Transcriber(threading.Thread):
             result = self._transcribe_array(chunk)
             segments = list(result.segments)  # Live-Haeppchen sind kurz - gleich ganz auswerten
             punctuation = self.settings.get("punctuation_commands")
-            text = apply_voice_commands(
-                filter_segments(segments, hotwords=result.hotwords, rejected=rejected),
-                punctuation=punctuation,
-            )
+            raw = filter_segments(segments, hotwords=result.hotwords, rejected=rejected)
+            text = apply_voice_commands(raw, punctuation=punctuation)
             if text is not None and punctuation:
-                # Ein allein gesagtes "Punkt" ist ein eigenes Haeppchen - der Satz
-                # danach soll trotzdem gross anfangen.
-                text = continue_sentence(self._last_live_text, text)
+                # Jedes Haeppchen endet an einer Sprechpause und haelt sich fuer
+                # einen neuen Satz - gross weiter nur nach einem gesagten Punkt.
+                self.sentence_case.observe(raw)
+                text = self.sentence_case.apply(text)
         except Exception as exc:
             # Frueher beendete ein Fehler hier still den ganzen Thread - danach
             # kam einfach kein Text mehr, ohne jeden Hinweis.
@@ -204,7 +209,6 @@ class Transcriber(threading.Thread):
             self.result_q.put({"type": "recognition_error", "error": str(exc)})
             return
         if text is not None:
-            self._last_live_text = text
             self.result_q.put({"type": "text", "text": text})
 
         saved = None
@@ -246,7 +250,8 @@ class Transcriber(threading.Thread):
 
         self.result_q.put({"type": "file_text", "text": f"— {path.name} —"})
         punctuation = self.settings.get("punctuation_commands")
-        paragraphs = Paragraphs(lambda text: self._emit_paragraph(out_path, text))
+        self.sentence_case.reset()
+        paragraphs =Paragraphs(lambda text: self._emit_paragraph(out_path, text))
         last_percent = 0
         segment_count = 0
         chars = 0
@@ -261,13 +266,12 @@ class Transcriber(threading.Thread):
                     done["cancelled"] = True
                     break
                 segment_count += 1
-                text = apply_voice_commands(
-                    filter_segments([segment], hotwords=result.hotwords, rejected=rejected),
-                    punctuation=punctuation,
-                )
+                raw = filter_segments([segment], hotwords=result.hotwords, rejected=rejected)
+                text = apply_voice_commands(raw, punctuation=punctuation)
                 if text is not None:
                     if punctuation:
-                        text = continue_sentence(paragraphs.last_text, text)
+                        self.sentence_case.observe(raw)
+                        text = self.sentence_case.apply(text)
                     chars += len(text)
                     paragraphs.add(segment.start, segment.end, text)
                 percent = min(99, int(segment.end / duration * 100))
@@ -341,12 +345,9 @@ class Paragraphs:
         self._parts: list[str] = []
         self._length = 0
         self._last_end = None
-        self.last_text = None
 
     def add(self, start: float, end: float, text: str):
-        if text:
-            self.last_text = text
-        if text[:1] in PUNCTUATION_CHARS and text and self._parts:
+        if text and text[0] in PUNCTUATION_CHARS and self._parts:
             # Ein allein gesagtes "Komma"/"Punkt" haengt am vorigen Wort - auch
             # nach einer Pause, die sonst einen neuen Absatz beginnen wuerde.
             self._parts[-1] += text

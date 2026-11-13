@@ -475,6 +475,7 @@ class App:
         self.recording = True
         self.level_hint = None
         self.typer.new_session()
+        self.transcriber.new_session()
         self._js("setRecordingState(true)")
         self.recording_status = warning or f"Nimmt auf... (→ {self.writer.path.name})"
         self._set_status(self.recording_status)

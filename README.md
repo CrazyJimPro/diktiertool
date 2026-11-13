@@ -193,13 +193,21 @@ Du hast die Wahl zwischen zwei Arten:
   „Komma“. Nach „Punkt“, „Fragezeichen“ und „Ausrufezeichen“ geht es mit einem
   Großbuchstaben weiter, auch wenn du dazwischen eine Pause machst. Zahlen wie „1.000“
   oder „14:30“ bleiben erhalten.
+- **Großschreibung nach Denkpausen:** Das Tool gibt den Text in Häppchen bis zur nächsten
+  Sprechpause an die Erkennung, und die hält jedes Häppchen für einen neuen Satz. Mit
+  Haken wird deshalb das erste Wort eines Häppchens wieder klein, wenn davor kein
+  „Punkt“, „Fragezeichen“ oder „Ausrufezeichen“ kam, etwa „und“, „weil“, „selbst“ oder
+  „ich“. Hauptwörter bleiben groß. Das Tool kennt die häufigsten kleinen Wörter und lernt
+  während des Diktats dazu, welche die Erkennung mitten im Satz klein schreibt. Ein
+  seltenes Wort direkt nach einer Pause kann trotzdem einmal groß bleiben.
 - **Kommas** setzt die Erkennung in beiden Fällen weiter selbst. Parakeet macht aus einem
   gesagten „Komma“ schon von sich aus ein Komma und setzt dazu eigene, etwa vor „dass“ –
   beides sieht im Ergebnis gleich aus und lässt sich nicht auseinanderhalten.
 
-Der Haken gilt für beide Modelle (Whisper und Parakeet) und auch für Audiodateien. Ein
-Nachteil: „der Punkt ist …“ wird zu „der. Ist …“ – das Wort selbst lässt sich
-dann nicht mehr diktieren.
+Der Haken gilt für beide Modelle (Whisper und Parakeet) und auch für Audiodateien. Steht
+ein Artikel davor, bleibt das Wort stehen: „einen Punkt“, „kein Fragezeichen“, „der Punkt
+ist …“ werden nicht zum Zeichen. Ohne Artikel („Punkt ist …“) wird es dagegen eins. Bei
+„Komma“ geht das mit Parakeet nicht, weil es das Wort schon selbst zum Zeichen macht.
 
 ### Eigene Wörter
 
