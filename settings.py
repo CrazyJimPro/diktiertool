@@ -7,6 +7,7 @@ Installer-Update %LOCALAPPDATA%\Diktiertool, unter Linux wuerde sie bei
 
 import json
 import os
+import re
 import sys
 import threading
 from pathlib import Path
@@ -39,6 +40,9 @@ DEFAULTS = {
     "output_dir": None,
     "file_per_session": False,
     "vocabulary": [],
+    # Eigene Ersetzungen [[falsch, richtig], ...] - wirken auf den fertigen Text,
+    # also auch bei Parakeet, das keine eigenen Woerter kennt.
+    "replacements": [],
     # Haeppchen ohne erkannten Text als WAV in den Log-Ordner (diagnostics.py).
     # Vorgabe aus: es sind Tonaufnahmen, die sollen nur auf Wunsch liegen bleiben.
     "keep_failed_audio": False,
@@ -73,6 +77,11 @@ def _is_valid(key, value) -> bool:
         return isinstance(value, bool)
     if key == "vocabulary":
         return isinstance(value, list) and all(isinstance(w, str) for w in value)
+    if key == "replacements":
+        return isinstance(value, list) and all(
+            isinstance(r, list) and len(r) == 2 and all(isinstance(s, str) for s in r)
+            and r[0].strip() != "" for r in value
+        )
     return False
 
 
@@ -85,6 +94,26 @@ def parse_vocabulary(text: str) -> list[str]:
         if word and word.casefold() not in (w.casefold() for w in words):
             words.append(word)
     return words
+
+
+# Pfeil zwischen "falsch" und "richtig". "→" laesst sich schlecht tippen,
+# deshalb gehen auch "->", "=>" und "=".
+_ARROW_RE = re.compile(r"\s*(?:→|->|=>|=)\s*")
+
+
+def parse_replacements(text: str) -> list[list[str]]:
+    """Eingabefeld -> Ersetzungsliste: eine Regel pro Zeile, "falsch → richtig".
+    Zeilen ohne Pfeil oder ohne linke Seite fallen weg, ebenso doppelte
+    (dann gilt die erste). Rechts darf leer sein: das Wort verschwindet."""
+    rules = []
+    for line in text.split("\n"):
+        parts = _ARROW_RE.split(line, maxsplit=1)
+        if len(parts) != 2:
+            continue
+        wrong, right = (" ".join(p.split()) for p in parts)
+        if wrong and wrong.casefold() not in (r[0].casefold() for r in rules):
+            rules.append([wrong, right])
+    return rules
 
 
 class Settings:

@@ -23,6 +23,7 @@ const resetDirButton = document.getElementById("resetDirButton");
 const filePerSession = document.getElementById("filePerSession");
 const punctuationCommands = document.getElementById("punctuationCommands");
 const vocabulary = document.getElementById("vocabulary");
+const replacements = document.getElementById("replacements");
 const settingsDone = document.getElementById("settingsDone");
 const fileButton = document.getElementById("fileButton");
 const keepFailedAudio = document.getElementById("keepFailedAudio");
@@ -68,6 +69,8 @@ window.addEventListener("pywebviewready", () => {
   // "change" feuert bei einem Textfeld erst beim Verlassen - also nicht bei
   // jedem Tastendruck, aber spaetestens beim Klick auf "Fertig".
   vocabulary.addEventListener("change", () => pywebview.api.update_setting("vocabulary", vocabulary.value));
+  replacements.addEventListener("change",
+    () => pywebview.api.update_setting("replacements", replacements.value));
   chooseDirButton.addEventListener("click", () => pywebview.api.choose_output_dir());
   fileButton.addEventListener("click", () => pywebview.api.file_button());
   keepFailedAudio.addEventListener("change",
@@ -278,6 +281,9 @@ function setSettings(values) {
   beepCheckbox.checked = values.beep;
   // Nicht ueberschreiben, waehrend jemand darin tippt
   if (document.activeElement !== vocabulary) vocabulary.value = values.vocabulary.join("\n");
+  if (document.activeElement !== replacements) {
+    replacements.value = values.replacements.map(([wrong, right]) => `${wrong} -> ${right}`.trimEnd()).join("\n");
+  }
   outputDir.textContent = values.output_dir_display;
   outputDir.title = values.output_dir_display;
   resetDirButton.hidden = values.output_dir_is_default;

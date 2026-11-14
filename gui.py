@@ -18,7 +18,7 @@ from audio_capture import AudioCapture, list_input_devices
 from audio_file import AUDIO_EXTENSIONS
 from transcriber import Transcriber
 from file_writer import DEFAULT_OUTPUT_DIR, FileWriter
-from settings import Settings, parse_vocabulary
+from settings import Settings, parse_replacements, parse_vocabulary
 import diagnostics
 from diagnostics import log
 import keyboard_control
@@ -238,6 +238,8 @@ class App:
     def update_setting(self, key, value):
         if key == "vocabulary":
             value = parse_vocabulary(value if isinstance(value, str) else "")
+        elif key == "replacements":
+            value = parse_replacements(value if isinstance(value, str) else "")
         elif key not in ("model_size", "language", "output_dir",
                          "file_per_session", "punctuation_commands", "keep_failed_audio",
                          "hotkey", "hotkey_mode", "type_into_window", "beep"):
@@ -259,6 +261,7 @@ class App:
         # Fuers Log nur, WAS sich geaendert hat - eigene Woerter und Ordnerpfade
         # koennen schon zu viel verraten.
         shown = {"vocabulary": f"{len(self.settings.get('vocabulary'))} Wörter",
+                 "replacements": f"{len(self.settings.get('replacements'))} Regeln",
                  "output_dir": "eigener Ordner" if self.settings.get("output_dir") else "Standard",
                  }.get(key, self.settings.get(key))
         log.info("Einstellung %s = %s", key, shown)

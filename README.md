@@ -114,7 +114,7 @@ Gut zu wissen:
 ## Einstellungen
 
 Das Zahnrad oben rechts (neben dem Design-Knopf) öffnet die Einstellungen. Sie sind auf
-Reiter verteilt: **Erkennung** (Modell, Sprache, eigene Wörter, Satzzeichen), **Ausgabe**
+Reiter verteilt: **Erkennung** (Modell, Sprache, eigene Wörter, Ersetzungen, Satzzeichen), **Ausgabe**
 (Ordner, eigene Datei pro Aufnahme), **Tastatur** (Taste zum Diktieren, Tippen am Cursor,
 siehe oben) und **Diagnose**. Jede Änderung wird sofort gespeichert, „Fertig“ führt
 zurück zur Aufnahme.
@@ -144,7 +144,8 @@ eine ganz andere Spracherkennung, ein auf Deutsch trainiertes Modell.
   es keine Sätze. Satzzeichen und Großschreibung setzt es selbst (außer mit Haken bei
   [„Satzzeichen nur per Sprache“](#satzzeichen-per-sprache)).
 - **Einschränkungen:** nur Deutsch. „Sprache“ und „Eigene Wörter“ gelten nicht und sind
-  ausgegraut, solange Parakeet gewählt ist. Braucht etwas mehr Arbeitsspeicher (rund 1 GB,
+  ausgegraut, solange Parakeet gewählt ist. Für Wörter, die Parakeet immer wieder falsch
+  hört, gibt es die [Ersetzungen](#ersetzungen). Braucht etwas mehr Arbeitsspeicher (rund 1 GB,
   bei Audiodateien kurzzeitig mehr).
 - Am besten einfach ausprobieren: Zwischen Whisper und Parakeet lässt sich jederzeit hin-
   und herschalten.
@@ -213,7 +214,35 @@ ist …“ werden nicht zum Zeichen. Ohne Artikel („Punkt ist …“) wird es 
 
 Namen und Fachbegriffe, die sonst falsch geschrieben werden: einen Begriff pro Zeile
 eintragen (Komma geht auch). Sie gelten ab dem nächsten Satz. Am besten wirken wenige
-gezielte Wörter, eine lange Liste verwässert den Effekt.
+gezielte Wörter, eine lange Liste verwässert den Effekt. Gilt nur für Whisper; bei
+Parakeet helfen stattdessen die [Ersetzungen](#ersetzungen).
+
+### Ersetzungen
+
+Für Wörter, die die Erkennung immer wieder gleich falsch schreibt. Gilt für Whisper und
+Parakeet, beim Diktieren und bei Audiodateien.
+
+1. Im Reiter **Erkennung** in das Feld **„Ersetzungen“** klicken.
+2. Eine Regel pro Zeile eintragen: links, was die Erkennung schreibt, rechts, was dastehen
+   soll, dazwischen `->` (`=`, `=>` und `→` gehen auch). Beispiel:
+   ```
+   gross- und kleinen Schreibtische Treibung -> Groß- und Kleinschreibung
+   Kuber Netis -> Kubernetes
+   äh ->
+   ```
+3. Das Feld verlassen oder auf „Fertig“ klicken. Die Regeln gelten ab dem nächsten Satz.
+
+Gut zu wissen:
+
+- Groß- und Kleinschreibung links ist egal. Steht das gefundene Wort am Satzanfang groß,
+  beginnt auch der Ersatz groß.
+- Es werden nur ganze Wörter ersetzt: „Kuber Netis“ trifft nicht „Kuber Netisse“.
+- Setzt die Erkennung zwischen die Wörter ein Komma („Schreibtische, Treibung“), greift die
+  Regel trotzdem.
+- Rechts leer lassen (`äh ->`) streicht das Wort ganz.
+- Überschneiden sich Regeln, gewinnt die längere. Was eine Regel eingesetzt hat, ändert
+  keine zweite mehr.
+- Zeilen ohne Pfeil fallen beim Verlassen des Felds weg.
 
 ### Diagnose
 

@@ -38,7 +38,8 @@ import audio_file
 from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS, SAMPLE_RATE
 from diagnostics import log, normalize_gain, save_failed_recording
 from settings import PARAKEET
-from text_postprocess import PUNCTUATION_CHARS, SentenceCase, apply_voice_commands, filter_segments
+from text_postprocess import (PUNCTUATION_CHARS, SentenceCase, apply_replacements,
+                              apply_voice_commands, filter_segments)
 
 
 class Transcriber(threading.Thread):
@@ -197,6 +198,8 @@ class Transcriber(threading.Thread):
             punctuation = self.settings.get("punctuation_commands")
             raw = filter_segments(segments, hotwords=result.hotwords, rejected=rejected)
             text = apply_voice_commands(raw, punctuation=punctuation)
+            if text is not None:
+                text = apply_replacements(text, self.settings.get("replacements"))
             if text is not None and punctuation:
                 # Jedes Haeppchen endet an einer Sprechpause und haelt sich fuer
                 # einen neuen Satz - gross weiter nur nach einem gesagten Punkt.
@@ -250,6 +253,7 @@ class Transcriber(threading.Thread):
 
         self.result_q.put({"type": "file_text", "text": f"— {path.name} —"})
         punctuation = self.settings.get("punctuation_commands")
+        replacements = self.settings.get("replacements")
         self.sentence_case.reset()
         paragraphs =Paragraphs(lambda text: self._emit_paragraph(out_path, text))
         last_percent = 0
@@ -268,6 +272,8 @@ class Transcriber(threading.Thread):
                 segment_count += 1
                 raw = filter_segments([segment], hotwords=result.hotwords, rejected=rejected)
                 text = apply_voice_commands(raw, punctuation=punctuation)
+                if text is not None:
+                    text = apply_replacements(text, replacements)
                 if text is not None:
                     if punctuation:
                         self.sentence_case.observe(raw)

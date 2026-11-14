@@ -208,6 +208,8 @@ class SentenceCase:
             return text  # beginnt z. B. mit einem allein gesagten "Komma"
         word = match.group()
         key = word.casefold()
+        if text[match.end():match.end() + 1] == "-":
+            return text  # "Groß- und Kleinschreibung": Teil eines Hauptworts
         if word[0].isupper() and not word.isupper() and (
             key in _LOWERCASE_WORDS or (key in self._learned and key not in self._seen_capital)
         ):
@@ -230,6 +232,72 @@ def strip_auto_punctuation(text: str) -> str:
     diktiert, bekaeme sonst doppelte."""
     text = _AUTO_PUNCT_RE.sub("", text)
     return re.sub(r"[ \t]{2,}", " ", text).strip(" \t")
+
+
+_replacement_cache: tuple | None = None
+
+
+def _replacement_pattern(rules) -> tuple[re.Pattern, list[str]] | None:
+    """Ein einziger regulaerer Ausdruck fuer alle Regeln, laengste zuerst - so
+    gewinnt "Schreibtische Treibung" vor "Treibung", und was eine Regel
+    eingesetzt hat, ersetzt keine zweite noch einmal."""
+    global _replacement_cache
+    key = tuple(tuple(r) for r in rules)
+    if _replacement_cache is not None and _replacement_cache[0] == key:
+        return _replacement_cache[1]
+    ordered = sorted(((w, r) for w, r in key if w.strip()), key=lambda rule: -len(rule[0]))
+    if not ordered:
+        compiled = None
+    else:
+        parts = []
+        for index, (wrong, _) in enumerate(ordered):
+            # Zwischen den Woertern beliebig viel Leerraum, auch ein Komma der
+            # Erkennung ("Schreibtische, Treibung")
+            body = r",?\s+".join(re.escape(word) for word in wrong.split())
+            start = r"(?<!\w)" if re.match(r"\w", wrong) else ""
+            end = r"(?!\w)" if re.search(r"\w$", wrong) else ""
+            parts.append(f"(?P<r{index}>{start}{body}{end})")
+        compiled = (re.compile("|".join(parts), re.IGNORECASE), [r for _, r in ordered])
+    _replacement_cache = (key, compiled)
+    return compiled
+
+
+def apply_replacements(text: str, rules) -> str | None:
+    """Eigene Ersetzungen "falsch → richtig" auf den fertigen Text. Gross-/
+    Kleinschreibung spielt beim Suchen keine Rolle. Stand das gefundene Wort
+    gross (z. B. am Satzanfang), beginnt auch der Ersatz gross. Bleibt nach dem
+    Ersetzen nichts uebrig, kommt None (nichts ausgeben)."""
+    compiled = _replacement_pattern(rules) if rules and text else None
+    if compiled is None:
+        return text
+    pattern, replacements = compiled
+    removed = False
+
+    def substitute(match):
+        nonlocal removed
+        right = replacements[int(match.lastgroup[1:])]
+        if not right:
+            removed = True
+        elif right[:1].islower() and match.group()[:1].isupper():
+            right = right[0].upper() + right[1:]
+        return right
+
+    original = text
+    text = pattern.sub(substitute, text)
+    if removed:
+        # Ein leerer Ersatz ("äh →") hinterlaesst doppelte Leerzeichen und
+        # verwaiste Kommas ("Äh, ich" -> ", ich")
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        text = re.sub(r"[ \t]+([,.;:!?])", r"\1", text)
+        text = re.sub(r"(^|\n)[ \t,]+", r"\1", text)
+        text = re.sub(r",[ \t]*([.;:!?]|$)", r"\1", text, flags=re.MULTILINE)
+        text = "\n".join(line.strip(" \t") for line in text.split("\n"))
+        if not re.search(r"\w", text):
+            return None  # nur noch Satzzeichen uebrig ("Äh." -> ".")
+        # Fiel das erste Wort weg, beginnt das naechste den Satz
+        if original[:1].isupper() and text[:1].islower():
+            text = text[0].upper() + text[1:]
+    return text
 
 
 def apply_voice_commands(text: str, punctuation: bool = False) -> str | None:
