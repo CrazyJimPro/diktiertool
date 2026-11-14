@@ -128,7 +128,7 @@ class Transcriber(threading.Thread):
     def cancel_files(self):
         self.cancel_event.set()
 
-    def _transcribe_array(self, audio) -> "Recognition":
+    def _transcribe_array(self, audio, live: bool = False) -> "Recognition":
         """Die einzige Stelle, die das Erkennungsmodell aufruft - live wie fuer
         Audiodateien. Jedes Segment hat mindestens .start, .end und .text
         (Whisper-Segmente zusaetzlich die Werte, nach denen filter_segments
@@ -138,7 +138,7 @@ class Transcriber(threading.Thread):
         if self.loaded_size == PARAKEET:
             # Parakeet kann nur Deutsch und kennt keine eigenen Woerter - der
             # Dialog graut beides aus, solange es gewaehlt ist.
-            return Recognition(self.model.transcribe(audio), len(audio) / SAMPLE_RATE,
+            return Recognition(self.model.transcribe(audio, whole=live), len(audio) / SAMPLE_RATE,
                                "de", None, gain)
         language = self.settings.get("language")
         hotwords = ", ".join(self.settings.get("vocabulary")) or None
@@ -193,7 +193,7 @@ class Transcriber(threading.Thread):
         started = time.monotonic()
         rejected = Counter()
         try:
-            result = self._transcribe_array(chunk)
+            result = self._transcribe_array(chunk, live=True)
             segments = list(result.segments)  # Live-Haeppchen sind kurz - gleich ganz auswerten
             punctuation = self.settings.get("punctuation_commands")
             raw = filter_segments(segments, hotwords=result.hotwords, rejected=rejected)

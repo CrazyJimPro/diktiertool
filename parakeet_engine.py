@@ -102,10 +102,18 @@ class ParakeetEngine:
         self._recognizer.decode_stream(stream)
         return stream.result.text.strip()
 
-    def transcribe(self, audio: np.ndarray):
+    def transcribe(self, audio: np.ndarray, whole: bool = False):
         """Generator von Segmenten - wie bei faster-whisper wird erst beim
-        Durchlaufen gerechnet (Fortschritt und Abbrechen bei Dateien)."""
-        for start, end in split_on_pauses(audio):
+        Durchlaufen gerechnet (Fortschritt und Abbrechen bei Dateien).
+        whole=True (Live-Haeppchen): nicht an Pausen zuschneiden, solange es
+        in ein Stueck passt. Das Zuschneiden geht nach einer festen
+        Lautstaerkegrenze und hat leise Woerter am Anfang und Ende eines
+        Haeppchens abgeschnitten - die Pausen hat die Aufnahme ohnehin schon
+        gefunden."""
+        pieces = split_on_pauses(audio)
+        if whole and pieces and len(audio) / SAMPLE_RATE <= MAX_PIECE_S:
+            pieces = [(0.0, len(audio) / SAMPLE_RATE)]
+        for start, end in pieces:
             piece = audio[int(start * SAMPLE_RATE):int(end * SAMPLE_RATE)]
             text = self._decode(piece)
             # Das Modell liefert ab und zu fuer ein laengeres Stueck mit

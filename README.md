@@ -266,6 +266,18 @@ Wo das liegt:
 Außerdem hebt das Tool leise Aufnahmen automatisch an, bevor sie erkannt werden (bis zum
 30-Fachen). Das hilft bei Mikrofonen mit zu niedrigem Pegel.
 
+Ab wann etwas als Sprache zählt, passt das Tool laufend an das Grundrauschen im Raum an.
+In einem ruhigen Raum werden so auch leise Wörter nach einer Pause aufgenommen, etwa ein
+leise gesagtes „Punkt“. In einer lauten Umgebung ist es nie unempfindlicher als früher.
+Am Ende jeder Aufnahme steht im Log eine Zeile wie
+`Aufnahme beendet: schwelle=0.0060-0.0090 haeppchen=24 davon_leise=3 knapp_darunter=1`:
+- **schwelle:** niedrigste und höchste Sprachschwelle während der Aufnahme
+- **davon_leise:** Häppchen, die so leise waren, dass ältere Versionen (bis 1.8.1) sie
+  verloren hätten
+- **knapp_darunter:** wie oft Ton knapp unter der Schwelle lag, ohne ein Häppchen
+  auszulösen. Ist die Zahl hoch und fehlen Wörter, ist das Mikrofon für diese Umgebung zu
+  leise.
+
 ### Wo die Einstellungen gespeichert werden
 
 - Windows: `%APPDATA%\Diktiertool\settings.json`

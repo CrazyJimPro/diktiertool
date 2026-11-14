@@ -56,7 +56,7 @@ OUTPUT_FILE = _default_output_file()
 # Bei jedem Release manuell mit dem neuen Git-Tag synchron halten (siehe
 # update_check.py und installscript/windows/setup.iss - der CI-Workflow
 # vergleicht Tag und diese Nummer und bricht bei Abweichung ab)
-VERSION = "1.8.1"
+VERSION = "1.9.0"
 
 # Whisper
 MODEL_SIZE = "small"
@@ -73,7 +73,16 @@ CHANNELS = 1
 BLOCKSIZE = 800  # ~50ms bei 16kHz
 
 # Pausenerkennung / Chunking
+# Sprachschwelle: passt sich dem Grundrauschen an (NOISE_FLOOR_FACTOR mal das
+# leiseste Zehntel der letzten NOISE_WINDOW_S), liegt aber immer zwischen
+# MIN_SPEECH_THRESHOLD_RMS und SILENCE_THRESHOLD_RMS. Frueher war sie fest
+# 0.015 - bei leisen Mikrofonen (Spitze ~0.05-0.1) blieben leise Woerter nach
+# einer Pause darunter und gingen spurlos verloren. Nach oben begrenzt auf den
+# alten Wert: nie unempfindlicher als vorher.
 SILENCE_THRESHOLD_RMS = 0.015
+MIN_SPEECH_THRESHOLD_RMS = 0.006
+NOISE_FLOOR_FACTOR = 3.0
+NOISE_WINDOW_S = 3.0
 SILENCE_DURATION_MS = 700
 MAX_CHUNK_DURATION_S = 18
 MIN_CHUNK_DURATION_MS = 300

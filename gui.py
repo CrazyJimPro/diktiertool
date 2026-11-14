@@ -490,7 +490,7 @@ class App:
         self.hotkey_hold_active = False
         self._js("setRecordingState(false)")
         self._set_status(self._ready_status())
-        log.info("Aufnahme beendet")
+        log.info("Aufnahme beendet: %s", self.capture.stats_text())
 
     def _update_level_hint(self):
         """Hinweis, wenn vom Mikrofon nichts Brauchbares kommt - sonst wartet

@@ -12,6 +12,9 @@ from config import (
     CHANNELS,
     BLOCKSIZE,
     SILENCE_THRESHOLD_RMS,
+    MIN_SPEECH_THRESHOLD_RMS,
+    NOISE_FLOOR_FACTOR,
+    NOISE_WINDOW_S,
     SILENCE_DURATION_MS,
     MAX_CHUNK_DURATION_S,
     MIN_CHUNK_DURATION_MS,
@@ -110,6 +113,13 @@ class AudioCapture:
         self._ignore_until = 0.0
         self._on_first_block = None
 
+        # Anpassungsfaehige Sprachschwelle (siehe config.py)
+        self._recent_rms = deque(maxlen=max(10, round(NOISE_WINDOW_S * SAMPLE_RATE / BLOCKSIZE)))
+        self._threshold = SILENCE_THRESHOLD_RMS
+        self._near_run = 0
+        self._chunk_peak_rms = 0.0
+        self._reset_stats()
+
         self._level_lock = threading.Lock()
         self._level = 0.0
         # Fuer den Stumm-/Zu-leise-Hinweis: wann zuletzt ueberhaupt Ton bzw.
@@ -129,6 +139,37 @@ class AudioCapture:
         if now - self._last_speech_time >= LEVEL_HINT_AFTER_S:
             return "leise"
         return None
+
+    def _reset_stats(self):
+        self._stats_min = None
+        self._stats_max = None
+        self._stats_near = 0       # Ansaetze knapp unter der Schwelle (evtl. verlorene Woerter)
+        self._stats_quiet = 0      # Haeppchen, die die alte feste Schwelle nie erreicht haetten
+        self._stats_chunks = 0
+
+    def _update_threshold(self, rms: float):
+        """Schwelle = Grundrauschen x Faktor. Grundrauschen ist das leiseste
+        Zehntel der letzten Sekunden - auch beim Sprechen gibt es zwischen den
+        Woertern genug leise Bloecke. Nur Rechnen auf ~60 Zahlen, im Callback
+        unbedenklich."""
+        self._recent_rms.append(rms)
+        if len(self._recent_rms) < 10:
+            return  # gerade erst gestartet - bis dahin die alte feste Schwelle
+        ordered = sorted(self._recent_rms)
+        floor = ordered[len(ordered) // 10]
+        self._threshold = min(SILENCE_THRESHOLD_RMS,
+                              max(MIN_SPEECH_THRESHOLD_RMS, floor * NOISE_FLOOR_FACTOR))
+        if self._stats_min is None or self._threshold < self._stats_min:
+            self._stats_min = self._threshold
+        if self._stats_max is None or self._threshold > self._stats_max:
+            self._stats_max = self._threshold
+
+    def stats_text(self) -> str:
+        """Zusammenfassung fuer das Log beim Aufnahme-Ende (nur Zahlen)."""
+        if self._stats_min is None:
+            return "schwelle=-"
+        return (f"schwelle={self._stats_min:.4f}-{self._stats_max:.4f} haeppchen={self._stats_chunks} "
+                f"davon_leise={self._stats_quiet} knapp_darunter={self._stats_near}")
 
     def ignore_for(self, seconds: float):
         """Die naechsten `seconds` nichts aufnehmen (Signalton ueber die Lautsprecher)."""
@@ -152,6 +193,7 @@ class AudioCapture:
         # jedes Klicken (50 ms laut + 400 ms Vorlauf) als Haeppchen durch.
         duration_ms = (self._chunk_duration_s - self._preroll_s) * 1000
         chunk = np.concatenate(self._chunk_blocks)
+        chunk_peak_rms, self._chunk_peak_rms = self._chunk_peak_rms, 0.0
         self._chunk_blocks = []
         self._chunk_duration_s = 0.0
         self._preroll_s = 0.0
@@ -159,6 +201,9 @@ class AudioCapture:
         self._in_speech = False
 
         if duration_ms >= MIN_CHUNK_DURATION_MS:
+            self._stats_chunks += 1
+            if chunk_peak_rms <= SILENCE_THRESHOLD_RMS:
+                self._stats_quiet += 1
             try:
                 self.audio_q.put_nowait(chunk)
             except queue.Full:
@@ -184,14 +229,18 @@ class AudioCapture:
         rms = float(np.sqrt(np.mean(np.square(mono))))
         with self._level_lock:
             self._level = rms
+        self._update_threshold(rms)
+        threshold = self._threshold
         if rms >= MUTE_THRESHOLD_RMS:
             self._last_sound_time = self.last_callback_time
-        if rms > SILENCE_THRESHOLD_RMS:
+        if rms > threshold:
             self._last_speech_time = self.last_callback_time
 
         block_duration_s = frames / SAMPLE_RATE
 
-        if rms > SILENCE_THRESHOLD_RMS:
+        if rms > threshold:
+            self._chunk_peak_rms = max(self._chunk_peak_rms, rms)
+            self._near_run = 0
             if not self._in_speech and self._pre_roll:
                 self._chunk_blocks.extend(self._pre_roll)
                 self._preroll_s = len(self._pre_roll) * block_duration_s
@@ -203,6 +252,14 @@ class AudioCapture:
             self._chunk_duration_s += block_duration_s
         elif not self._in_speech:
             self._pre_roll.append(mono.copy())
+            # Mitzaehlen fuers Log: mindestens 150 ms knapp unter der Schwelle
+            # (halbe Schwelle bis Schwelle) - da koennte ein leises Wort gewesen sein
+            if rms >= threshold / 2:
+                self._near_run += 1
+                if self._near_run == 3:
+                    self._stats_near += 1
+            else:
+                self._near_run = 0
         else:
             self._chunk_blocks.append(mono.copy())
             self._chunk_duration_s += block_duration_s
@@ -239,6 +296,11 @@ class AudioCapture:
             self._last_speech_time = self.last_callback_time
             self._pre_roll.clear()
             self._ignore_until = 0.0
+            self._recent_rms.clear()
+            self._threshold = SILENCE_THRESHOLD_RMS
+            self._near_run = 0
+            self._chunk_peak_rms = 0.0
+            self._reset_stats()
             self.stream.start()
         except sd.PortAudioError as exc:
             self.stream = None
