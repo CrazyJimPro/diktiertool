@@ -157,6 +157,20 @@ meinst finde finden brauche brauchst braucht brauchen lass lassen komme kommt ko
 warten schreibe schreiben schreibt geschrieben setzt setzen gesetzt erwähne erwähnen überlegen
 groß gross klein gut schlecht neu alt richtig falsch kurz lang schnell langsam wichtig schwer
 leicht willkürlich automatisch selbstständig selbständig
+mach machst machte machten hab tu tun tut getan nimm nehme nimmt nehmen genommen gib sag sagst
+geh gehst komm kommst lies lese liest lesen hör höre hört hören guck gucke guckt gucken probier
+probiere probiert probieren teste testet testen getestet prüf prüfe prüft prüfen schreib zeig
+zeige zeigt zeigen hilf helfe hilft helfen versuche versucht versuchen hol hole holt holen bring
+bringe bringt bringen leg lege legt legen lösch lösche löscht löschen ändere ändert ändern
+geändert sieh passt passen funktioniert funktionieren klappt klappen läuft laufen heißt heisst
+bleibt bleiben steht stehen liegt liegen fehlt fehlen
+danke egal schade toll super prima ok fertig bereit sicher möglich nötig dran drin drauf raus
+rein rauf runter hin her los voll echt total wirklich ziemlich zumindest mindestens höchstens
+übrigens ebenfalls nämlich sowieso ohnehin quasi sozusagen wahrscheinlich bestimmt sicherlich
+vermutlich offenbar anscheinend scheinbar jedenfalls nochmal nochmals einmal zweimal endlich
+plötzlich sofort direkt schließlich eher anders genauso ebenso nun oben unten vorne hinten links
+rechts drüben überall nirgends nirgendwo dies jene jener jenes jenen jenem solche solcher solches
+solchen dessen deren hallo hey ach oh na naja tja hm äh ähm
 """.split())
 # Diese nie dazulernen - "Sie" als Anrede bleibt gross
 _NEVER_LOWERCASE = frozenset("sie ihr ihre ihren ihrem ihrer ihres ihnen".split())
@@ -232,6 +246,27 @@ def strip_auto_punctuation(text: str) -> str:
     diktiert, bekaeme sonst doppelte."""
     text = _AUTO_PUNCT_RE.sub("", text)
     return re.sub(r"[ \t]{2,}", " ", text).strip(" \t")
+
+
+_REPEATED_WORD_RE = re.compile(r"(?<![\w-])([^\W\d_]{3,})\s+\1(?![\w-])")
+
+
+def collapse_repeated_nouns(text: str) -> str:
+    """Die Erkennung gibt ab und zu ein Wort doppelt aus ("dieses Wort Wort
+    gewesen"). Zusammengefasst werden nur gleich geschriebene grosse Woerter
+    (Hauptwoerter) - "das das", "sehr sehr" oder "ja ja" koennen gewollt sein."""
+    def keep_one(match):
+        word = match.group(1)
+        noun = word[0].isupper() and not word.isupper()
+        # "wenn Sie Sie sehen" ist richtig - Anredewoerter bleiben doppelt
+        if noun and word.casefold() not in _NEVER_LOWERCASE:
+            return word
+        return match.group()
+
+    previous = None
+    while previous != text:  # "Wort Wort Wort" -> "Wort"
+        previous, text = text, _REPEATED_WORD_RE.sub(keep_one, text)
+    return text
 
 
 _replacement_cache: tuple | None = None

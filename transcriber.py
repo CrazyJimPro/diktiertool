@@ -38,7 +38,7 @@ import audio_file
 from config import MODEL_SIZE, COMPUTE_TYPE, CPU_THREADS, SAMPLE_RATE
 from diagnostics import log, normalize_gain, save_failed_recording
 from settings import PARAKEET
-from text_postprocess import (PUNCTUATION_CHARS, SentenceCase, apply_replacements,
+from text_postprocess import (PUNCTUATION_CHARS, SentenceCase, apply_replacements, collapse_repeated_nouns,
                               apply_voice_commands, filter_segments)
 
 
@@ -199,7 +199,7 @@ class Transcriber(threading.Thread):
             raw = filter_segments(segments, hotwords=result.hotwords, rejected=rejected)
             text = apply_voice_commands(raw, punctuation=punctuation)
             if text is not None:
-                text = apply_replacements(text, self.settings.get("replacements"))
+                text = apply_replacements(collapse_repeated_nouns(text), self.settings.get("replacements"))
             if text is not None and punctuation:
                 # Jedes Haeppchen endet an einer Sprechpause und haelt sich fuer
                 # einen neuen Satz - gross weiter nur nach einem gesagten Punkt.
@@ -273,7 +273,7 @@ class Transcriber(threading.Thread):
                 raw = filter_segments([segment], hotwords=result.hotwords, rejected=rejected)
                 text = apply_voice_commands(raw, punctuation=punctuation)
                 if text is not None:
-                    text = apply_replacements(text, replacements)
+                    text = apply_replacements(collapse_repeated_nouns(text), replacements)
                 if text is not None:
                     if punctuation:
                         self.sentence_case.observe(raw)
